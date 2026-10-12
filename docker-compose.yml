@@ -1,0 +1,30 @@
+# API de DSL. Se publica bajo /api del mismo dominio que el front,
+# y habla con la base por la red interna que crea bd-dsl.
+name: dsl-back
+
+services:
+  back:
+    build: .
+    container_name: dsl-back
+    restart: unless-stopped
+    environment:
+      PGHOST: dsl-db
+      PGDATABASE: ${DB_NAME}
+      PGUSER: ${DB_USER}
+      PGPASSWORD: ${DB_PASSWORD}
+      CLAVE_INICIAL: ${CLAVE_INICIAL:?definir CLAVE_INICIAL en .env}
+      ADMIN_CORREO: ${ADMIN_CORREO:-}
+    networks:
+      - proxy      # para que Traefik lo publique
+      - interna    # para hablar con la base
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dsl-api.rule=Host(`${APP_HOST:?definir APP_HOST en .env}`) && PathPrefix(`/api`)
+      - traefik.http.services.dsl-api.loadbalancer.server.port=3000
+
+networks:
+  proxy:
+    external: true
+  interna:
+    name: dsl_interna
+    external: true
