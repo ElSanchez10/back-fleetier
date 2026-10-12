@@ -36,8 +36,31 @@ npm test
 | `src/salud/` | `GET /api/salud`: responde solo si la base contesta |
 | `src/usuarios/` | administración de cuentas (solo admin): crear, editar, restablecer la contraseña y eliminar |
 | `src/catalogos/` | lo que se administra en Configuración: ciudades, locales, destinos, tipos de cooler, clasificación de conductores y tipos de evento |
+| `src/coolers/` | inventario de coolers: listado con filtros, ficha, alta, edición y etiquetas con código de barras en PDF |
 
-Cada módulo de la app (coolers, conductores, rutas…) agrega su carpeta en `src/`.
+Cada módulo de la app (conductores, rutas…) agrega su carpeta en `src/`.
+
+## Alcance por local
+
+`src/comun/alcance.ts` aplica la regla del local en todos los módulos:
+`localVisible()` da el local por el que hay que filtrar un listado y
+`exigirLocal()` rechaza (`403 otro_local`) crear o modificar algo de otro
+local. Un registro de otro local se responde igual que uno que no existe (`404`).
+
+## Coolers
+
+- `GET /api/coolers` acepta además `estado` y `localId`, y junto con el tramo
+  devuelve un `resumen` (total, disponibles y en ruta) de todo lo que la cuenta
+  puede ver.
+- Registrar: `admin` y `encargado`. El cooler nace disponible y el back le
+  asigna un código de barras de ocho dígitos. Editar (incluidos código y
+  estado): solo `admin`.
+- Etiquetas (`admin`, `asistente` y `encargado`): `GET /api/coolers/etiquetas`
+  entrega un PDF con las de todos los coolers que cumplen el filtro y
+  `GET /api/coolers/:id/etiqueta`, la de uno. Son Code 128, armadas con
+  `bwip-js` y `pdfkit` (`src/coolers/etiquetas.ts`).
+- `GET /api/coolers/:id/barras.svg` es el código de barras como imagen, para la
+  ficha.
 
 ## Catálogos
 
