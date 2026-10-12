@@ -15,14 +15,14 @@ export const TODOS_LOS_ROLES: Rol[] = [
 
 // Quien hizo la petición, según su sesión.
 export interface UsuarioSesion {
-  id: string;
+  id: number;
   nombre: string;
   correo: string;
   rol: Rol;
   // true mientras tenga la contraseña inicial: solo puede cambiarla o salir.
   debeCambiarClave: boolean;
   // Su local. Con un local, solo ve y modifica lo de ese local; null: ve todos.
-  localId: string | null;
+  localId: number | null;
 }
 
 export const COOKIE_SESION = 'dsl_sesion';

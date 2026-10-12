@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from './auth/auth.module.js';
 import { BdModule } from './bd/bd.module.js';
+import { CatalogosModule } from './catalogos/catalogos.module.js';
 import { SaludController } from './salud/salud.controller.js';
+import { UsuariosModule } from './usuarios/usuarios.module.js';
 
 @Module({
-  imports: [BdModule, AuthModule],
+  imports: [BdModule, AuthModule, CatalogosModule, UsuariosModule],
   controllers: [SaludController],
 })
 export class AppModule {}

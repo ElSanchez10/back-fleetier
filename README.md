@@ -34,9 +34,21 @@ npm test
 | `src/auth/` | inicio de sesión, contraseñas y permisos por rol |
 | `src/comun/` | traducción de errores de la base a respuestas HTTP, paginación y utilidades de SQL |
 | `src/salud/` | `GET /api/salud`: responde solo si la base contesta |
+| `src/usuarios/` | administración de cuentas (solo admin): crear, editar, restablecer la contraseña y eliminar |
+| `src/catalogos/` | lo que se administra en Configuración: ciudades, locales, destinos, tipos de cooler, clasificación de conductores y tipos de evento |
 
-Cada módulo de la app (configuración, coolers, conductores, rutas…) agrega su
-carpeta en `src/`.
+Cada módulo de la app (coolers, conductores, rutas…) agrega su carpeta en `src/`.
+
+## Catálogos
+
+Los catálogos son listas cortas: `GET` las devuelve completas, sin tramos, y
+las puede leer cualquier rol (las usan los formularios). Crear (`POST`), editar
+(`PUT /:id`) y eliminar (`DELETE /:id`) es solo para admin. Todos comparten
+`src/catalogos/mantenedor.ts`; cada controlador solo declara su tabla y sus
+columnas. Un elemento en uso no se elimina: la llave foránea lo impide y la
+respuesta es un `409` con el nombre de esa llave.
+
+Una cuenta con local recibe en `GET /api/locales` solo el suyo.
 
 ## Sesión y permisos
 
@@ -51,6 +63,9 @@ carpeta en `src/`.
 - Toda cuenta nace con la contraseña de `CLAVE_INICIAL` y debe cambiarla al
   entrar; mientras no lo haga, solo puede usar `/api/sesion`.
 - El primer admin lo crea el back al partir, con el correo de `ADMIN_CORREO`.
+- Un admin crea las demás cuentas y restablece contraseñas (`/api/usuarios`).
+  Solo `encargado` y `coordinador` pueden tener local. Nadie cambia su propio
+  rol ni elimina su propia cuenta: así siempre queda al menos un admin.
 - Tras cinco ingresos fallidos seguidos, el correo queda bloqueado 15 minutos.
   La cuenta se lleva en la base (tabla `intento_ingreso`), así que sobrevive a
   un reinicio del back.

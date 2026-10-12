@@ -77,9 +77,9 @@ export class AuthService implements OnApplicationBootstrap {
   // ir dentro de la transacción de quien la llama.
   async crearUsuario(
     consultar: Consultar,
-    datos: { nombre: string; correo: string; rol: Rol; localId: string | null },
-  ): Promise<string> {
-    const [{ id }] = await consultar<{ id: string }>(
+    datos: { nombre: string; correo: string; rol: Rol; localId: number | null },
+  ): Promise<number> {
+    const [{ id }] = await consultar<{ id: number }>(
       `insert into usuario (nombre, email, rol, local_id, clave_hash)
        values ($1, $2, $3, $4, $5) returning id`,
       [
@@ -95,7 +95,7 @@ export class AuthService implements OnApplicationBootstrap {
 
   // Deja la cuenta como recién creada: contraseña inicial, cambio obligatorio y
   // todas sus sesiones cerradas.
-  async restablecerClave(usuarioId: string): Promise<boolean> {
+  async restablecerClave(usuarioId: number): Promise<boolean> {
     const cambiadas = await this.bd.consultar(
       `update usuario set clave_hash = $2, debe_cambiar_clave = true where id = $1 returning id`,
       [usuarioId, await cifrarClave(this.claveInicial)],
@@ -105,7 +105,7 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   // Cierra todas las sesiones de una cuenta (por ejemplo, si cambia su rol).
-  async cerrarSesiones(usuarioId: string) {
+  async cerrarSesiones(usuarioId: number) {
     await this.bd.consultar(`delete from sesion where usuario_id = $1`, [
       usuarioId,
     ]);
@@ -118,7 +118,7 @@ export class AuthService implements OnApplicationBootstrap {
     await this.exigirPocosFallos(llave);
 
     const [cuenta] = await this.bd.consultar<{
-      id: string;
+      id: number;
       claveHash: string;
     }>(
       `select id, clave_hash as "claveHash" from usuario where lower(email) = $1`,
@@ -180,7 +180,7 @@ export class AuthService implements OnApplicationBootstrap {
 
   // Cambia la contraseña de quien tiene la sesión `token`. Cierra sus demás sesiones.
   async cambiarClave(
-    usuarioId: string,
+    usuarioId: number,
     token: string,
     actual: string,
     nueva: string,
