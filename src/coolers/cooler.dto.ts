@@ -14,6 +14,7 @@ import {
 import { ID_MAXIMO } from '../comun/id.pipe.js';
 import { PaginaDto } from '../comun/paginacion.js';
 import { recortar } from '../comun/transformaciones.js';
+import { EsFecha } from '../comun/validaciones.js';
 
 export const ESTADOS_COOLER = [
   'disponible',
@@ -33,7 +34,7 @@ export class CoolerDto {
   @MaxLength(30)
   nombre: string;
 
-  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @EsFecha()
   fechaAdquisicion: string;
 
   @IsBoolean()

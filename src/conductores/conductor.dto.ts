@@ -1,0 +1,164 @@
+import { Transform, Type } from 'class-transformer';
+import {
+  IsEmail,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+  Validate,
+  ValidatorConstraint,
+  type ValidatorConstraintInterface,
+} from 'class-validator';
+import { ID_MAXIMO } from '../comun/id.pipe.js';
+import { PaginaDto } from '../comun/paginacion.js';
+import { recortar } from '../comun/transformaciones.js';
+import { EsFecha } from '../comun/validaciones.js';
+import { normalizarRun, runValido } from './run.js';
+
+@ValidatorConstraint({ name: 'run' })
+class RunValido implements ValidatorConstraintInterface {
+  validate(valor: unknown) {
+    return typeof valor === 'string' && runValido(valor);
+  }
+
+  defaultMessage() {
+    return 'run no es un RUN válido';
+  }
+}
+
+export class ConductorDto {
+  @Transform(recortar)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(80)
+  nombre: string;
+
+  // Llega como lo escriba la persona; se guarda sin puntos y con guion.
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? normalizarRun(value) : value,
+  )
+  @Validate(RunValido)
+  run: string;
+
+  @EsFecha()
+  fechaNacimiento: string;
+
+  // Celular: nueve dígitos, sin el +56.
+  @Transform(recortar)
+  @Matches(/^\d{9}$/)
+  telefono: string;
+
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
+  @IsEmail()
+  @MaxLength(120)
+  email: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(ID_MAXIMO)
+  ciudadId: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(ID_MAXIMO)
+  tipoConductorId: number;
+}
+
+export class FiltroConductoresDto extends PaginaDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(ID_MAXIMO)
+  tipoConductorId?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(ID_MAXIMO)
+  ciudadId?: number;
+}
+
+export class EventoDto {
+  @IsInt()
+  @Min(1)
+  @Max(ID_MAXIMO)
+  tipoEventoId: number;
+
+  @Transform(recortar)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(80)
+  titulo: string;
+
+  @Transform(recortar)
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  descripcion: string = '';
+
+  // Ambos días incluidos; que `hasta` no sea anterior lo valida la base.
+  @EsFecha()
+  desde: string;
+
+  @EsFecha()
+  hasta: string;
+}
+
+// El calendario pide los eventos que tocan un rango de días.
+export class RangoDto {
+  @EsFecha()
+  desde: string;
+
+  @EsFecha()
+  hasta: string;
+}
+
+export class CuentaDto {
+  // Para qué es la cuenta: el nombre de la aplicación, por ejemplo.
+  @Transform(recortar)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  cuenta: string;
+
+  @Transform(recortar)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  usuario: string;
+
+  // No se recorta: un espacio puede ser parte de la contraseña.
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  clave: string;
+}
+
+// Al editar, la contraseña solo se envía si se quiere cambiar.
+export class EditarCuentaDto {
+  @Transform(recortar)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  cuenta: string;
+
+  @Transform(recortar)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  usuario: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  clave?: string;
+}

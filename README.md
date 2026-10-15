@@ -37,8 +37,9 @@ npm test
 | `src/usuarios/` | administración de cuentas (solo admin): crear, editar, restablecer la contraseña y eliminar |
 | `src/catalogos/` | lo que se administra en Configuración: ciudades, locales, destinos, tipos de cooler, clasificación de conductores y tipos de evento |
 | `src/coolers/` | inventario de coolers: listado con filtros, ficha, alta, edición y etiquetas con código de barras en PDF |
+| `src/conductores/` | conductores: listado con filtros, ficha, alta y edición; los eventos de su calendario y sus cuentas en aplicaciones externas (cifradas) |
 
-Cada módulo de la app (conductores, rutas…) agrega su carpeta en `src/`.
+Cada módulo de la app (rutas…) agrega su carpeta en `src/`.
 
 ## Alcance por local
 
@@ -61,6 +62,26 @@ local. Un registro de otro local se responde igual que uno que no existe (`404`)
   `bwip-js` y `pdfkit` (`src/coolers/etiquetas.ts`).
 - `GET /api/coolers/:id/barras.svg` es el código de barras como imagen, para la
   ficha.
+
+## Conductores
+
+- Son de una ciudad, no de un local: una cuenta con local ve los de la ciudad
+  de su local. `GET /api/conductores` acepta además `tipoConductorId` y
+  `ciudadId`, busca por nombre, RUN, correo o teléfono y devuelve un `resumen`.
+  Mientras no exista el módulo de rutas, el resumen da a todos por disponibles.
+- Registrar y editar: `admin` y `asistente`. El RUN se guarda sin puntos y con
+  guion (`12345678-K`) y se valida su dígito verificador (`src/conductores/run.ts`).
+- Eventos del calendario (`/api/conductores/:id/eventos`): los lee quien puede
+  ver al conductor, con `?desde=AAAA-MM-DD&hasta=AAAA-MM-DD`; los anotan,
+  corrigen y eliminan `admin` y `asistente`.
+- Cuentas en aplicaciones externas (`/api/conductores/:id/cuentas`): solo
+  `admin` y `asistente` (eliminar, solo `admin`). La contraseña se guarda
+  cifrada con AES-256-GCM (`src/conductores/cifrado.ts`) y no viaja en el
+  listado: se pide una a la vez en `GET .../cuentas/:cuentaId/clave`.
+- La llave del cifrado sale de `CLAVE_CUENTAS`. Sin ella el back parte igual,
+  pero las cuentas responden `503 cifrado_no_configurado`. **No se cambia una
+  vez en uso y hay que guardarla aparte de los respaldos de la base**: si se
+  pierde, las contraseñas guardadas no se pueden recuperar.
 
 ## Catálogos
 
