@@ -37,7 +37,8 @@ npm test
 | `src/usuarios/` | administración de cuentas (solo admin): crear, editar, restablecer la contraseña y eliminar |
 | `src/catalogos/` | lo que se administra en Configuración: ciudades, locales, destinos, tipos de cooler, clasificación de conductores y tipos de evento |
 | `src/coolers/` | inventario de coolers: listado con filtros, ficha, alta, edición y etiquetas con código de barras en PDF |
-| `src/conductores/` | conductores: listado con filtros, ficha, alta y edición; los eventos de su calendario y sus cuentas en aplicaciones externas (cifradas) |
+| `src/conductores/` | conductores: listado con filtros, ficha, alta y edición; los eventos de su calendario, sus cuentas en aplicaciones externas (cifradas) y sus rutas |
+| `src/rutas/` | rutas de reparto: listado, resumen del día, registro, edición, inicio, cierre, problemas y retorno de coolers |
 
 Cada módulo de la app (rutas…) agrega su carpeta en `src/`.
 
@@ -62,13 +63,22 @@ local. Un registro de otro local se responde igual que uno que no existe (`404`)
   `bwip-js` y `pdfkit` (`src/coolers/etiquetas.ts`).
 - `GET /api/coolers/:id/barras.svg` es el código de barras como imagen, para la
   ficha.
+- `GET /api/coolers/codigo/:codigo` busca el cooler que leyó la pistola y
+  `GET /api/coolers/:id/rutas`, las rutas que ha hecho (por tramos).
+- Mientras un cooler está en una ruta (en espera, en ruta o pendiente), su
+  estado y su local los manejan las rutas: editarlos a mano responde
+  `409 cooler_estado_de_ruta`.
 
 ## Conductores
 
 - Son de una ciudad, no de un local: una cuenta con local ve los de la ciudad
   de su local. `GET /api/conductores` acepta además `tipoConductorId` y
-  `ciudadId`, busca por nombre, RUN, correo o teléfono y devuelve un `resumen`.
-  Mientras no exista el módulo de rutas, el resumen da a todos por disponibles.
+  `ciudadId`, busca por nombre, RUN, correo o teléfono y devuelve un `resumen`:
+  disponibles (sin ruta abierta) y en ruta (su ruta ya partió). Con
+  `libres=true` trae solo los que no tienen una ruta abierta. Cada conductor
+  trae su `ultimaRuta`.
+- `GET /api/conductores/:id/rutas` y `.../actividad` (con `desde` y `hasta`):
+  sus rutas, para el calendario, y las órdenes por local.
 - Registrar y editar: `admin` y `asistente`. El RUN se guarda sin puntos y con
   guion (`12345678-K`) y se valida su dígito verificador (`src/conductores/run.ts`).
 - Eventos del calendario (`/api/conductores/:id/eventos`): los lee quien puede
@@ -82,6 +92,29 @@ local. Un registro de otro local se responde igual que uno que no existe (`404`)
   pero las cuentas responden `503 cifrado_no_configurado`. **No se cambia una
   vez en uso y hay que guardarla aparte de los respaldos de la base**: si se
   pierde, las contraseñas guardadas no se pueden recuperar.
+
+## Rutas
+
+- Estados: `en_espera` (pre-cargada), `en_ejecucion`, `pendiente` (cerrada con
+  coolers que no volvieron) y `finalizada`. Los cambios de estado de rutas y
+  coolers los hacen funciones de la base (`bd-dsl/Functions/ruta_*.sql` y
+  `cooler_devolver.sql`): el back solo las llama y traduce sus errores.
+- Todos los roles ven las rutas (una cuenta con local, las de su local). Las
+  operan `admin`, `encargado` y `coordinador`; una ruta ya cerrada solo la
+  corrige un `admin`, y sus coolers ya no cambian.
+- `GET /api/rutas` filtra por días (`fechaDesde`, `fechaHasta`), `estado` y
+  `localId`, y busca por conductor o número de ruta. `GET /api/rutas/resumen`
+  cuenta las rutas de hoy por estado.
+- `POST /api/rutas` registra la ruta con sus coolers; con `iniciar: true` parte
+  de inmediato. `PUT /api/rutas/:id` deja los coolers como dice la lista
+  enviada. `POST .../iniciar` y `POST .../cerrar` cambian el estado.
+- `POST /api/devoluciones` (`{ codigo }`) registra un cooler que volvió, en la
+  ruta que lo tenga: sirve al cerrar una ruta y para un cooler que vuelve días
+  después.
+- Problemas de una ruta (`/api/rutas/:id/problemas`): los anotan y corrigen
+  quienes operan rutas; los elimina solo `admin`.
+- Las fechas con hora viajan como `AAAA-MM-DDTHH:MM` en hora de Chile; en la
+  base se guardan con zona horaria.
 
 ## Catálogos
 

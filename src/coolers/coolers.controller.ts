@@ -1,5 +1,6 @@
 import {
   Body,
+  ConflictException,
   Controller,
   Get,
   Header,
@@ -21,7 +22,7 @@ import {
 import { BdService } from '../bd/bd.service.js';
 import { exigirLocal, localVisible } from '../comun/alcance.js';
 import { IdPipe } from '../comun/id.pipe.js';
-import { Pagina } from '../comun/paginacion.js';
+import { Pagina, PaginaDto } from '../comun/paginacion.js';
 import { contiene, patron } from '../comun/sql.js';
 import {
   CoolerDto,
@@ -78,6 +79,12 @@ const ORDEN = 'k.estado, length(k.nombre), lower(k.nombre), k.id';
 // Las etiquetas de todo un filtro van en un solo PDF: se acota por si acaso.
 const MAX_ETIQUETAS = 2000;
 const INTENTOS_CODIGO = 5;
+
+// Estados que ponen y sacan las rutas, no una persona.
+const ESTADOS_DE_RUTA: EstadoCooler[] = ['en_espera', 'en_ruta', 'pendiente'];
+
+const HORA_LOCAL = (columna: string) =>
+  `to_char(${columna} at time zone 'America/Santiago', 'YYYY-MM-DD"T"HH24:MI')`;
 
 function noExiste(): never {
   throw new NotFoundException({ statusCode: 404, codigo: 'cooler_no_existe' });
@@ -140,6 +147,19 @@ export class CoolersController {
     return pdf('etiquetas-coolers.pdf', await armarEtiquetas(coolers));
   }
 
+  // El cooler que leyó la pistola. Uno de otro local se trata como inexistente.
+  @Get('codigo/:codigo')
+  async porCodigo(
+    @Param('codigo') codigo: string,
+    @UsuarioActual() usuario: UsuarioSesion,
+  ) {
+    const [cooler] = await this.bd.consultar<Cooler>(
+      `${SELECT_COOLER} where k.codigo = $1 and ($2::int is null or k.local_id = $2)`,
+      [codigo.trim(), localVisible(usuario)],
+    );
+    return cooler ?? noExiste();
+  }
+
   @Get(':id')
   uno(
     @Param('id', IdPipe) id: number,
@@ -157,6 +177,40 @@ export class CoolersController {
     @UsuarioActual() usuario: UsuarioSesion,
   ) {
     return barrasSvg((await this.buscar(id, usuario)).codigo);
+  }
+
+  // Las rutas que ha hecho el cooler, de la más reciente a la más antigua.
+  @Get(':id/rutas')
+  async rutas(
+    @Param('id', IdPipe) id: number,
+    @Query() q: PaginaDto,
+    @UsuarioActual() usuario: UsuarioSesion,
+  ): Promise<Pagina<unknown>> {
+    await this.buscar(id, usuario);
+    const [items, [{ total }]] = await Promise.all([
+      this.bd.consultar(
+        `select r.id,
+                ${HORA_LOCAL('r.fecha')} as fecha,
+                r.estado,
+                l.nombre as local,
+                d.nombre as conductor,
+                rc.devuelto,
+                ${HORA_LOCAL('rc.devuelto_en')} as "devueltoEn"
+         from ruta_cooler rc
+         join ruta r on r.id = rc.ruta_id
+         join local l on l.id = r.local_id
+         left join conductor d on d.id = r.conductor_id
+         where rc.cooler_id = $1
+         order by r.fecha desc, r.id desc
+         limit $2 offset $3`,
+        [id, q.limite, q.desde],
+      ),
+      this.bd.consultar<{ total: number }>(
+        'select count(*)::int as total from ruta_cooler where cooler_id = $1',
+        [id],
+      ),
+    ]);
+    return { items, total };
   }
 
   @Get(':id/etiqueta')
@@ -205,6 +259,8 @@ export class CoolersController {
     }
   }
 
+  // Mientras el cooler está en una ruta (en espera, en ruta o pendiente) su
+  // estado y su local los manejan las rutas: no se cambian a mano.
   @Put(':id')
   @Roles('admin')
   async editar(
@@ -212,6 +268,17 @@ export class CoolersController {
     @Body() dto: EditarCoolerDto,
     @UsuarioActual() usuario: UsuarioSesion,
   ) {
+    const actual = await this.buscar(id, usuario);
+    const enRuta = (estado: EstadoCooler) => ESTADOS_DE_RUTA.includes(estado);
+    if (
+      (enRuta(actual.estado) || enRuta(dto.estado)) &&
+      (actual.estado !== dto.estado || actual.localId !== dto.localId)
+    ) {
+      throw new ConflictException({
+        statusCode: 409,
+        codigo: 'cooler_estado_de_ruta',
+      });
+    }
     const cambiados = await this.bd.consultar(
       `update cooler
        set nombre = $2, codigo = $3, fecha_adquisicion = $4, tiene_tapa = $5,

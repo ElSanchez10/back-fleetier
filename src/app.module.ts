@@ -4,6 +4,7 @@ import { BdModule } from './bd/bd.module.js';
 import { CatalogosModule } from './catalogos/catalogos.module.js';
 import { ConductoresModule } from './conductores/conductores.module.js';
 import { CoolersModule } from './coolers/coolers.module.js';
+import { RutasModule } from './rutas/rutas.module.js';
 import { SaludController } from './salud/salud.controller.js';
 import { UsuariosModule } from './usuarios/usuarios.module.js';
 
@@ -14,6 +15,7 @@ import { UsuariosModule } from './usuarios/usuarios.module.js';
     CatalogosModule,
     ConductoresModule,
     CoolersModule,
+    RutasModule,
     UsuariosModule,
   ],
   controllers: [SaludController],

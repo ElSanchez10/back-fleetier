@@ -4,10 +4,17 @@ import { ConductoresController } from './conductores.controller.js';
 import { ConductoresService } from './conductores.service.js';
 import { CuentasController } from './cuentas.controller.js';
 import { EventosController } from './eventos.controller.js';
+import { RutasConductorController } from './rutas-conductor.controller.js';
 
 @Module({
-  controllers: [ConductoresController, EventosController, CuentasController],
+  controllers: [
+    ConductoresController,
+    EventosController,
+    CuentasController,
+    RutasConductorController,
+  ],
   providers: [ConductoresService],
+  exports: [ConductoresService],
 })
 export class ConductoresModule implements OnModuleInit {
   // Sin CLAVE_CUENTAS el back parte igual; solo las cuentas de los conductores

@@ -13,7 +13,25 @@ export interface Conductor {
   ciudad: string;
   tipoConductorId: number;
   tipoConductor: string;
+  // Está en una ruta en espera o en ejecución: no se le puede asignar otra.
+  ocupado: boolean;
+  ultimaRuta: {
+    id: number;
+    fecha: string;
+    estado: string;
+    local: string;
+    ciudad: string;
+  } | null;
 }
+
+// El conductor `d` tiene una ruta abierta (en espera o en ejecución).
+export const OCUPADO = `exists (
+  select 1 from ruta r
+  where r.conductor_id = d.id and r.estado in ('en_espera', 'en_ejecucion'))`;
+
+// El conductor `d` anda en una ruta que ya partió.
+export const EN_RUTA = `exists (
+  select 1 from ruta r where r.conductor_id = d.id and r.estado = 'en_ejecucion')`;
 
 export const SELECT_CONDUCTOR = `
   select d.id,
@@ -25,10 +43,26 @@ export const SELECT_CONDUCTOR = `
          d.ciudad_id as "ciudadId",
          c.nombre as ciudad,
          d.tipo_conductor_id as "tipoConductorId",
-         t.nombre as "tipoConductor"
+         t.nombre as "tipoConductor",
+         ${OCUPADO} as ocupado,
+         u.ruta as "ultimaRuta"
   from conductor d
   join ciudad c on c.id = d.ciudad_id
-  join tipo_conductor t on t.id = d.tipo_conductor_id`;
+  join tipo_conductor t on t.id = d.tipo_conductor_id
+  left join lateral (
+    select json_build_object(
+             'id', r.id,
+             'fecha', to_char(r.fecha at time zone 'America/Santiago', 'YYYY-MM-DD"T"HH24:MI'),
+             'estado', r.estado,
+             'local', l.nombre,
+             'ciudad', lc.nombre) as ruta
+    from ruta r
+    join local l on l.id = r.local_id
+    join ciudad lc on lc.id = l.ciudad_id
+    where r.conductor_id = d.id
+    order by r.fecha desc, r.id desc
+    limit 1
+  ) u on true`;
 
 // Los conductores son de una ciudad, no de un local: una cuenta con local ve
 // los de la ciudad de su local. `parametro` es el número ($n) que lleva el

@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsEmail,
   IsInt,
   IsNotEmpty,
@@ -84,6 +85,14 @@ export class FiltroConductoresDto extends PaginaDto {
   @Min(1)
   @Max(ID_MAXIMO)
   ciudadId?: number;
+
+  // true: solo los que no tienen una ruta abierta (para asignarles una).
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === 'true' ? true : value === 'false' ? false : value,
+  )
+  @IsBoolean()
+  libres?: boolean;
 }
 
 export class EventoDto {
