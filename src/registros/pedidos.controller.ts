@@ -26,7 +26,7 @@ import {
   MAX_FILAS_EXCEL,
 } from '../comun/excel.js';
 import { Pagina } from '../comun/paginacion.js';
-import { contiene, patron } from '../comun/sql.js';
+import { contiene, ordenarPor, patron } from '../comun/sql.js';
 import { FiltroPedidosDto, PedidoEspecialDto } from './registro.dto.js';
 import {
   DONDE_COMUN,
@@ -67,6 +67,16 @@ const DONDE = `
     and (${contiene('d.nombre', '$4')} or ${contiene('x.descripcion', '$4')})
     and ($5::boolean is null or x.extraordinario = $5)`;
 
+// Columnas por las que se ordena el listado. El valor, solo para quien lo ve.
+const ORDEN = {
+  id: 'x.id',
+  fecha: 'x.fecha',
+  local: 'lower(l.nombre)',
+  destino: 'lower(d.nombre)',
+  cantidad: 'x.cantidad',
+};
+const ORDEN_CON_VALOR = { ...ORDEN, valor: 'x.precio' };
+
 // Pedidos que los locales envían a destinos especiales. Los cuatro roles los
 // ven, anotan y corrigen; solo admin los elimina. Encargado y coordinador no
 // ven precios, no marcan extraordinarios ni corrigen los ya marcados.
@@ -84,7 +94,8 @@ export class PedidosController {
     const [items, [{ total }]] = await Promise.all([
       this.bd.consultar<PedidoEspecial>(
         `${selectPedido('$6')} ${DONDE}
-         order by x.fecha desc, x.id desc limit $7 offset $8`,
+         ${ordenarPor(q, vePrecios(usuario.rol) ? ORDEN_CON_VALOR : ORDEN, 'x.fecha desc, x.id desc', 'x.id')}
+         limit $7 offset $8`,
         [...filtros, vePrecios(usuario.rol), q.limite, q.desde],
       ),
       this.bd.consultar<{ total: number }>(

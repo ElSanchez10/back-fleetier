@@ -170,6 +170,11 @@ Todo listado se pide por tramos y se busca en el back (`src/comun/paginacion.ts`
 `total` cuenta todas las filas que cumplen el filtro. La búsqueda no distingue
 mayúsculas ni tildes.
 
+Rutas, pedidos especiales, atrasos y casos se ordenan además por columna con
+`&orden=fecha&sentido=asc` (`ordenarPor` en `src/comun/sql.ts`): cada listado
+dice qué columnas admite y un `orden` que no está entre ellas se ignora. Sin
+`orden` van de la fecha más reciente a la más antigua.
+
 ## Planillas Excel
 
 Rutas, pedidos especiales, atrasos, casos, coolers y conductores tienen

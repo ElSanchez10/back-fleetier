@@ -25,7 +25,7 @@ import {
   EXPORTAN,
   MAX_FILAS_EXCEL,
 } from '../comun/excel.js';
-import { contiene, HOY, patron } from '../comun/sql.js';
+import { contiene, HOY, ordenarPor, patron } from '../comun/sql.js';
 import { ConductoresService } from '../conductores/conductores.service.js';
 import {
   FiltroRutasDto,
@@ -49,6 +49,14 @@ const DONDE = `
     and ($4::date is null or ${DIA_RUTA} <= $4)
     and ($5::estado_ruta is null or r.estado = $5)
     and ($6::int is null or r.local_id = $6)`;
+
+// Columnas por las que se ordena el historial.
+const ORDEN = {
+  id: 'r.id',
+  fecha: 'r.fecha',
+  local: 'lower(l.nombre)',
+  estado: 'r.estado',
+};
 
 const COLUMNAS_EXCEL: Columna<Ruta>[] = [
   { titulo: 'N°', valor: (r) => r.id },
@@ -84,7 +92,9 @@ export class RutasController {
     const filtros = this.filtros(q, usuario);
     const [items, [{ total }]] = await Promise.all([
       this.bd.consultar<Ruta>(
-        `${SELECT_RUTA} ${DONDE} order by r.fecha desc, r.id desc limit $7 offset $8`,
+        `${SELECT_RUTA} ${DONDE}
+         ${ordenarPor(q, ORDEN, 'r.fecha desc, r.id desc', 'r.id')}
+         limit $7 offset $8`,
         [...filtros, q.limite, q.desde],
       ),
       this.bd.consultar<{ total: number }>(

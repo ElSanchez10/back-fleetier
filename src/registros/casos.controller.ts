@@ -25,7 +25,7 @@ import {
   MAX_FILAS_EXCEL,
 } from '../comun/excel.js';
 import { Pagina } from '../comun/paginacion.js';
-import { contiene, patron } from '../comun/sql.js';
+import { contiene, ordenarPor, patron } from '../comun/sql.js';
 import { ConductoresService } from '../conductores/conductores.service.js';
 import { CasoDto, FiltroRegistrosDto } from './registro.dto.js';
 import { DONDE_COMUN, filtrosComunes, noExiste } from './registros.js';
@@ -53,6 +53,14 @@ const SELECT_CASO = `
 const DONDE = `
   where ${DONDE_COMUN}
     and (${contiene('d.nombre', '$4')} or ${contiene('x.descripcion', '$4')})`;
+
+// Columnas por las que se ordena el listado.
+const ORDEN = {
+  id: 'x.id',
+  fecha: 'x.fecha',
+  local: 'lower(l.nombre)',
+  conductor: 'lower(d.nombre)',
+};
 
 const COLUMNAS_EXCEL: Columna<Caso>[] = [
   { titulo: 'N°', valor: (c) => c.id },
@@ -83,7 +91,8 @@ export class CasosController {
     const [items, [{ total }]] = await Promise.all([
       this.bd.consultar<Caso>(
         `${SELECT_CASO} ${DONDE}
-         order by x.fecha desc, x.id desc limit $5 offset $6`,
+         ${ordenarPor(q, ORDEN, 'x.fecha desc, x.id desc', 'x.id')}
+         limit $5 offset $6`,
         [...filtros, q.limite, q.desde],
       ),
       this.bd.consultar<{ total: number }>(

@@ -25,6 +25,7 @@ import {
   MAX_FILAS_EXCEL,
 } from '../comun/excel.js';
 import { Pagina } from '../comun/paginacion.js';
+import { ordenarPor } from '../comun/sql.js';
 import {
   AtrasoDto,
   FiltroAtrasosDto,
@@ -53,6 +54,15 @@ const SELECT_ATRASO = `
 const DONDE = `
   where ${DONDE_COMUN}
     and ($4::tipo_atraso is null or x.tipo = $4)`;
+
+// Columnas por las que se ordena el listado.
+const ORDEN = {
+  id: 'x.id',
+  fecha: 'x.fecha',
+  local: 'lower(l.nombre)',
+  tipo: 'x.tipo',
+  cantidad: 'x.cantidad',
+};
 
 const COLUMNAS_EXCEL: Columna<Atraso>[] = [
   { titulo: 'N°', valor: (a) => a.id },
@@ -83,7 +93,8 @@ export class AtrasosController {
     const [items, [{ total }]] = await Promise.all([
       this.bd.consultar<Atraso>(
         `${SELECT_ATRASO} ${DONDE}
-         order by x.fecha desc, x.id desc limit $5 offset $6`,
+         ${ordenarPor(q, ORDEN, 'x.fecha desc, x.id desc', 'x.id')}
+         limit $5 offset $6`,
         [...filtros, q.limite, q.desde],
       ),
       this.bd.consultar<{ total: number }>(
