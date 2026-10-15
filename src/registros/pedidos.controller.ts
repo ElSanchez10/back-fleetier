@@ -19,6 +19,12 @@ import {
 import { BdService, type Consultar } from '../bd/bd.service.js';
 import { exigirLocal, localVisible } from '../comun/alcance.js';
 import { IdPipe } from '../comun/id.pipe.js';
+import {
+  type Columna,
+  excel,
+  EXPORTAN,
+  MAX_FILAS_EXCEL,
+} from '../comun/excel.js';
 import { Pagina } from '../comun/paginacion.js';
 import { contiene, patron } from '../comun/sql.js';
 import { FiltroPedidosDto, PedidoEspecialDto } from './registro.dto.js';
@@ -74,11 +80,7 @@ export class PedidosController {
     @Query() q: FiltroPedidosDto,
     @UsuarioActual() usuario: UsuarioSesion,
   ): Promise<Pagina<PedidoEspecial>> {
-    const filtros = [
-      ...filtrosComunes(q, localVisible(usuario, q.localId)),
-      patron(q.buscar),
-      q.extraordinario ?? null,
-    ];
+    const filtros = this.filtros(q, usuario);
     const [items, [{ total }]] = await Promise.all([
       this.bd.consultar<PedidoEspecial>(
         `${selectPedido('$6')} ${DONDE}
@@ -93,6 +95,38 @@ export class PedidosController {
       ),
     ]);
     return { items, total };
+  }
+
+  // Planilla con los pedidos que cumplen el filtro; el valor, solo para quien lo ve.
+  @Get('excel')
+  @Roles(...EXPORTAN)
+  async excel(
+    @Query() q: FiltroPedidosDto,
+    @UsuarioActual() usuario: UsuarioSesion,
+  ) {
+    const vePrecio = vePrecios(usuario.rol);
+    const pedidos = await this.bd.consultar<PedidoEspecial>(
+      `${selectPedido('$6')} ${DONDE}
+       order by x.fecha desc, x.id desc limit ${MAX_FILAS_EXCEL}`,
+      [...this.filtros(q, usuario), vePrecio],
+    );
+    const columnas: Columna<PedidoEspecial>[] = [
+      { titulo: 'N°', valor: (p) => p.id },
+      { titulo: 'Fecha', valor: (p) => p.fecha, tipo: 'fecha' },
+      { titulo: 'Local', valor: (p) => p.local },
+      { titulo: 'Ciudad', valor: (p) => p.ciudad },
+      { titulo: 'Destino', valor: (p) => p.destino },
+      {
+        titulo: 'Extraordinario',
+        valor: (p) => (p.extraordinario ? 'Sí' : 'No'),
+      },
+      { titulo: 'Descripción', valor: (p) => p.descripcion },
+      { titulo: 'Órdenes', valor: (p) => p.cantidad, tipo: 'numero' },
+    ];
+    if (vePrecio) {
+      columnas.push({ titulo: 'Valor', valor: (p) => p.precio, tipo: 'pesos' });
+    }
+    return excel('Pedidos especiales', 'Pedidos especiales', columnas, pedidos);
   }
 
   @Post()
@@ -183,6 +217,15 @@ export class PedidosController {
     if (borrados.length === 0) {
       noExiste('pedido_no_existe');
     }
+  }
+
+  // $1..$5 de DONDE.
+  private filtros(q: FiltroPedidosDto, usuario: UsuarioSesion) {
+    return [
+      ...filtrosComunes(q, localVisible(usuario, q.localId)),
+      patron(q.buscar),
+      q.extraordinario ?? null,
+    ];
   }
 
   // Un pedido de otro local se trata igual que uno que no existe.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizarRun, runValido } from './run.js';
+import { formatearRun, normalizarRun, runValido } from './run.js';
 
 describe('normalizarRun', () => {
   it('quita puntos y espacios, y deja el guion y la K en mayúscula', () => {
@@ -19,5 +19,12 @@ describe('runValido', () => {
     expect(runValido('12345678-9')).toBe(false);
     expect(runValido('12.345.678-5')).toBe(false);
     expect(runValido('123-4')).toBe(false);
+  });
+});
+
+describe('formatearRun', () => {
+  it('pone los puntos de miles', () => {
+    expect(formatearRun('12345678-K')).toBe('12.345.678-K');
+    expect(formatearRun('9876543-3')).toBe('9.876.543-3');
   });
 });

@@ -40,6 +40,7 @@ npm test
 | `src/conductores/` | conductores: listado con filtros, ficha, alta y edición; los eventos de su calendario, sus cuentas en aplicaciones externas (cifradas) y sus rutas |
 | `src/rutas/` | rutas de reparto: listado, resumen del día, registro, edición, inicio, cierre, problemas y retorno de coolers |
 | `src/registros/` | lo demás que se anota en Actividad: pedidos especiales, atrasos y casos excepcionales |
+| `src/resumen/` | indicadores de la pantalla de inicio y actividad de cada local en un mes |
 
 Cada módulo de la app (rutas…) agrega su carpeta en `src/`.
 
@@ -168,6 +169,27 @@ Todo listado se pide por tramos y se busca en el back (`src/comun/paginacion.ts`
 `?limite=30&desde=0&buscar=texto`. La respuesta es `{ items, total }`, donde
 `total` cuenta todas las filas que cumplen el filtro. La búsqueda no distingue
 mayúsculas ni tildes.
+
+## Planillas Excel
+
+Rutas, pedidos especiales, atrasos, casos, coolers y conductores tienen
+`GET .../excel` con los mismos filtros que su listado: entrega un `.xlsx` con
+todas las filas que cumplen el filtro (no un tramo). Lo mismo
+`GET /api/resumen/locales/excel?mes=AAAA-MM`. Las descargan `admin`,
+`asistente` y `encargado`, como en Laravel. Las arma `src/comun/excel.ts` con
+`exceljs`: títulos en negrita, primera fila fija, filtro en cada columna y
+fechas como fechas de Excel (en hora de Chile).
+
+`package.json` fuerza `uuid` ≥ 11.1.1 (`overrides`): `exceljs` trae una versión
+con un aviso de seguridad, aunque no usa la parte afectada.
+
+## Inicio
+
+`GET /api/resumen` entrega lo que está pasando ahora: rutas en ejecución,
+rutas pendientes, coolers disponibles, conductores en ruta y los coolers por
+estado. `GET /api/resumen/locales?mes=AAAA-MM&ciudadId&localId` suma, por local,
+las rutas que salieron en el mes y sus órdenes (sin contar las que siguen en
+espera).
 
 ## Errores
 

@@ -19,9 +19,20 @@ import { BdService } from '../bd/bd.service.js';
 import { exigirLocal, localVisible } from '../comun/alcance.js';
 import { IdPipe } from '../comun/id.pipe.js';
 import { Pagina } from '../comun/paginacion.js';
+import {
+  type Columna,
+  excel,
+  EXPORTAN,
+  MAX_FILAS_EXCEL,
+} from '../comun/excel.js';
 import { contiene, HOY, patron } from '../comun/sql.js';
 import { ConductoresService } from '../conductores/conductores.service.js';
-import { FiltroRutasDto, NuevaRutaDto, RutaDto } from './ruta.dto.js';
+import {
+  FiltroRutasDto,
+  NOMBRE_ESTADO_RUTA,
+  NuevaRutaDto,
+  RutaDto,
+} from './ruta.dto.js';
 import {
   DIA_RUTA,
   desdeHoraLocal,
@@ -38,6 +49,19 @@ const DONDE = `
     and ($4::date is null or ${DIA_RUTA} <= $4)
     and ($5::estado_ruta is null or r.estado = $5)
     and ($6::int is null or r.local_id = $6)`;
+
+const COLUMNAS_EXCEL: Columna<Ruta>[] = [
+  { titulo: 'N°', valor: (r) => r.id },
+  { titulo: 'Salida', valor: (r) => r.fecha, tipo: 'fechaHora' },
+  { titulo: 'Local', valor: (r) => r.local },
+  { titulo: 'Ciudad', valor: (r) => r.ciudad },
+  { titulo: 'Conductor', valor: (r) => r.conductor },
+  { titulo: 'Órdenes', valor: (r) => r.ordenes, tipo: 'numero' },
+  { titulo: 'Coolers', valor: (r) => r.coolers, tipo: 'numero' },
+  { titulo: 'Coolers devueltos', valor: (r) => r.devueltos, tipo: 'numero' },
+  { titulo: 'Problemas', valor: (r) => r.problemas, tipo: 'numero' },
+  { titulo: 'Estado', valor: (r) => NOMBRE_ESTADO_RUTA[r.estado] },
+];
 
 // Rutas de reparto. Todos los roles las ven; las operan admin, encargado y
 // coordinador. Una cuenta con local solo ve y opera las de su local.
@@ -57,18 +81,7 @@ export class RutasController {
     @Query() q: FiltroRutasDto,
     @UsuarioActual() usuario: UsuarioSesion,
   ): Promise<Pagina<Ruta>> {
-    // Un número (con o sin "#") busca además esa ruta por su número.
-    const numero = /^#?\d{1,9}$/.test(q.buscar ?? '')
-      ? Number(q.buscar?.replace('#', ''))
-      : null;
-    const filtros = [
-      patron(q.buscar),
-      numero,
-      q.fechaDesde ?? null,
-      q.fechaHasta ?? null,
-      q.estado ?? null,
-      localVisible(usuario, q.localId),
-    ];
+    const filtros = this.filtros(q, usuario);
     const [items, [{ total }]] = await Promise.all([
       this.bd.consultar<Ruta>(
         `${SELECT_RUTA} ${DONDE} order by r.fecha desc, r.id desc limit $7 offset $8`,
@@ -98,6 +111,20 @@ export class RutasController {
       [localVisible(usuario)],
     );
     return resumen;
+  }
+
+  // Planilla con las rutas que cumplen el filtro (todas, no un tramo).
+  @Get('excel')
+  @Roles(...EXPORTAN)
+  async excel(
+    @Query() q: FiltroRutasDto,
+    @UsuarioActual() usuario: UsuarioSesion,
+  ) {
+    const rutas = await this.bd.consultar<Ruta>(
+      `${SELECT_RUTA} ${DONDE} order by r.fecha desc, r.id desc limit ${MAX_FILAS_EXCEL}`,
+      this.filtros(q, usuario),
+    );
+    return excel('Rutas', 'Rutas', COLUMNAS_EXCEL, rutas);
   }
 
   // La ruta con sus coolers y sus problemas.
@@ -196,6 +223,22 @@ export class RutasController {
     await this.rutas.buscar(id, usuario);
     await this.bd.consultar('select ruta_cerrar($1)', [id]);
     return this.uno(id, usuario);
+  }
+
+  // $1..$6 de DONDE.
+  private filtros(q: FiltroRutasDto, usuario: UsuarioSesion) {
+    // Un número (con o sin "#") busca además esa ruta por su número.
+    const numero = /^#?\d{1,9}$/.test(q.buscar ?? '')
+      ? Number(q.buscar?.replace('#', ''))
+      : null;
+    return [
+      patron(q.buscar),
+      numero,
+      q.fechaDesde ?? null,
+      q.fechaHasta ?? null,
+      q.estado ?? null,
+      localVisible(usuario, q.localId),
+    ];
   }
 
   // La cuenta debe poder operar el local, y ver al conductor (su ciudad).

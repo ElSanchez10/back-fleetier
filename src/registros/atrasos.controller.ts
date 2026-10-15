@@ -18,6 +18,12 @@ import {
 import { BdService } from '../bd/bd.service.js';
 import { exigirLocal, localVisible } from '../comun/alcance.js';
 import { IdPipe } from '../comun/id.pipe.js';
+import {
+  type Columna,
+  excel,
+  EXPORTAN,
+  MAX_FILAS_EXCEL,
+} from '../comun/excel.js';
 import { Pagina } from '../comun/paginacion.js';
 import {
   AtrasoDto,
@@ -48,6 +54,18 @@ const DONDE = `
   where ${DONDE_COMUN}
     and ($4::tipo_atraso is null or x.tipo = $4)`;
 
+const COLUMNAS_EXCEL: Columna<Atraso>[] = [
+  { titulo: 'N°', valor: (a) => a.id },
+  { titulo: 'Fecha', valor: (a) => a.fecha, tipo: 'fecha' },
+  { titulo: 'Local', valor: (a) => a.local },
+  { titulo: 'Ciudad', valor: (a) => a.ciudad },
+  {
+    titulo: 'Tipo',
+    valor: (a) => (a.tipo === 'despacho' ? 'Despacho' : 'Picking'),
+  },
+  { titulo: 'Órdenes', valor: (a) => a.cantidad, tipo: 'numero' },
+];
+
 // Órdenes que un local dejó atrasadas en un día. Todos los roles las ven; las
 // anotan y corrigen admin, encargado y coordinador, y las elimina solo admin.
 @Controller('atrasos')
@@ -61,10 +79,7 @@ export class AtrasosController {
     @Query() q: FiltroAtrasosDto,
     @UsuarioActual() usuario: UsuarioSesion,
   ): Promise<Pagina<Atraso>> {
-    const filtros = [
-      ...filtrosComunes(q, localVisible(usuario, q.localId)),
-      q.tipo ?? null,
-    ];
+    const filtros = this.filtros(q, usuario);
     const [items, [{ total }]] = await Promise.all([
       this.bd.consultar<Atraso>(
         `${SELECT_ATRASO} ${DONDE}
@@ -77,6 +92,20 @@ export class AtrasosController {
       ),
     ]);
     return { items, total };
+  }
+
+  @Get('excel')
+  @Roles(...EXPORTAN)
+  async excel(
+    @Query() q: FiltroAtrasosDto,
+    @UsuarioActual() usuario: UsuarioSesion,
+  ) {
+    const atrasos = await this.bd.consultar<Atraso>(
+      `${SELECT_ATRASO} ${DONDE}
+       order by x.fecha desc, x.id desc limit ${MAX_FILAS_EXCEL}`,
+      this.filtros(q, usuario),
+    );
+    return excel('Atrasos', 'Atrasos', COLUMNAS_EXCEL, atrasos);
   }
 
   @Post()
@@ -117,6 +146,14 @@ export class AtrasosController {
     if (borrados.length === 0) {
       noExiste('atraso_no_existe');
     }
+  }
+
+  // $1..$4 de DONDE.
+  private filtros(q: FiltroAtrasosDto, usuario: UsuarioSesion) {
+    return [
+      ...filtrosComunes(q, localVisible(usuario, q.localId)),
+      q.tipo ?? null,
+    ];
   }
 
   // Un atraso de otro local se trata igual que uno que no existe.

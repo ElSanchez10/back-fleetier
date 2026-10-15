@@ -22,6 +22,12 @@ import {
 import { BdService } from '../bd/bd.service.js';
 import { exigirLocal, localVisible } from '../comun/alcance.js';
 import { IdPipe } from '../comun/id.pipe.js';
+import {
+  type Columna,
+  excel,
+  EXPORTAN,
+  MAX_FILAS_EXCEL,
+} from '../comun/excel.js';
 import { Pagina, PaginaDto } from '../comun/paginacion.js';
 import { contiene, patron } from '../comun/sql.js';
 import {
@@ -86,6 +92,38 @@ const ESTADOS_DE_RUTA: EstadoCooler[] = ['en_espera', 'en_ruta', 'pendiente'];
 const HORA_LOCAL = (columna: string) =>
   `to_char(${columna} at time zone 'America/Santiago', 'YYYY-MM-DD"T"HH24:MI')`;
 
+const NOMBRE_ESTADO: Record<EstadoCooler, string> = {
+  disponible: 'Disponible',
+  en_espera: 'En espera',
+  en_ruta: 'En ruta',
+  pendiente: 'Pendiente',
+  no_disponible: 'No disponible',
+  danado: 'Dañado',
+};
+
+const NOMBRE_CAPACIDAD: Record<string, string> = {
+  pequeno: 'Pequeño',
+  mediano: 'Mediano',
+  grande: 'Grande',
+};
+
+const COLUMNAS_EXCEL: Columna<Cooler>[] = [
+  { titulo: 'N°', valor: (k) => k.id },
+  { titulo: 'Cooler', valor: (k) => k.nombre },
+  { titulo: 'Código', valor: (k) => k.codigo },
+  { titulo: 'Adquisición', valor: (k) => k.fechaAdquisicion, tipo: 'fecha' },
+  { titulo: 'Tapa', valor: (k) => (k.tieneTapa ? 'Sí' : 'No') },
+  { titulo: 'Marca', valor: (k) => k.marca },
+  { titulo: 'Capacidad', valor: (k) => NOMBRE_CAPACIDAD[k.capacidad] },
+  {
+    titulo: 'Color',
+    valor: (k) => k.color[0].toUpperCase() + k.color.slice(1),
+  },
+  { titulo: 'Local', valor: (k) => k.local },
+  { titulo: 'Ciudad', valor: (k) => k.ciudad },
+  { titulo: 'Estado', valor: (k) => NOMBRE_ESTADO[k.estado] },
+];
+
 function noExiste(): never {
   throw new NotFoundException({ statusCode: 404, codigo: 'cooler_no_existe' });
 }
@@ -145,6 +183,20 @@ export class CoolersController {
       this.filtros(q, usuario),
     );
     return pdf('etiquetas-coolers.pdf', await armarEtiquetas(coolers));
+  }
+
+  // Planilla con los coolers que cumplen el filtro.
+  @Get('excel')
+  @Roles(...EXPORTAN)
+  async excel(
+    @Query() q: FiltroCoolersDto,
+    @UsuarioActual() usuario: UsuarioSesion,
+  ) {
+    const coolers = await this.bd.consultar<Cooler>(
+      `${SELECT_COOLER} ${DONDE} order by ${ORDEN} limit ${MAX_FILAS_EXCEL}`,
+      this.filtros(q, usuario),
+    );
+    return excel('Coolers', 'Coolers', COLUMNAS_EXCEL, coolers);
   }
 
   // El cooler que leyó la pistola. Uno de otro local se trata como inexistente.

@@ -5,6 +5,7 @@ import { CatalogosModule } from './catalogos/catalogos.module.js';
 import { ConductoresModule } from './conductores/conductores.module.js';
 import { CoolersModule } from './coolers/coolers.module.js';
 import { RegistrosModule } from './registros/registros.module.js';
+import { ResumenModule } from './resumen/resumen.module.js';
 import { RutasModule } from './rutas/rutas.module.js';
 import { SaludController } from './salud/salud.controller.js';
 import { UsuariosModule } from './usuarios/usuarios.module.js';
@@ -17,6 +18,7 @@ import { UsuariosModule } from './usuarios/usuarios.module.js';
     ConductoresModule,
     CoolersModule,
     RegistrosModule,
+    ResumenModule,
     RutasModule,
     UsuariosModule,
   ],

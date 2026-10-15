@@ -18,6 +18,12 @@ import {
 import { BdService } from '../bd/bd.service.js';
 import { exigirLocal, localVisible } from '../comun/alcance.js';
 import { IdPipe } from '../comun/id.pipe.js';
+import {
+  type Columna,
+  excel,
+  EXPORTAN,
+  MAX_FILAS_EXCEL,
+} from '../comun/excel.js';
 import { Pagina } from '../comun/paginacion.js';
 import { contiene, patron } from '../comun/sql.js';
 import { ConductoresService } from '../conductores/conductores.service.js';
@@ -48,6 +54,15 @@ const DONDE = `
   where ${DONDE_COMUN}
     and (${contiene('d.nombre', '$4')} or ${contiene('x.descripcion', '$4')})`;
 
+const COLUMNAS_EXCEL: Columna<Caso>[] = [
+  { titulo: 'N°', valor: (c) => c.id },
+  { titulo: 'Fecha', valor: (c) => c.fecha, tipo: 'fecha' },
+  { titulo: 'Local', valor: (c) => c.local },
+  { titulo: 'Ciudad', valor: (c) => c.ciudad },
+  { titulo: 'Conductor', valor: (c) => c.conductor },
+  { titulo: 'Descripción', valor: (c) => c.descripcion },
+];
+
 // Casos excepcionales de un conductor en un local. Todos los roles los ven;
 // los anotan y corrigen admin, encargado y coordinador, y los elimina solo admin.
 @Controller('casos')
@@ -64,10 +79,7 @@ export class CasosController {
     @Query() q: FiltroRegistrosDto,
     @UsuarioActual() usuario: UsuarioSesion,
   ): Promise<Pagina<Caso>> {
-    const filtros = [
-      ...filtrosComunes(q, localVisible(usuario, q.localId)),
-      patron(q.buscar),
-    ];
+    const filtros = this.filtros(q, usuario);
     const [items, [{ total }]] = await Promise.all([
       this.bd.consultar<Caso>(
         `${SELECT_CASO} ${DONDE}
@@ -82,6 +94,20 @@ export class CasosController {
       ),
     ]);
     return { items, total };
+  }
+
+  @Get('excel')
+  @Roles(...EXPORTAN)
+  async excel(
+    @Query() q: FiltroRegistrosDto,
+    @UsuarioActual() usuario: UsuarioSesion,
+  ) {
+    const casos = await this.bd.consultar<Caso>(
+      `${SELECT_CASO} ${DONDE}
+       order by x.fecha desc, x.id desc limit ${MAX_FILAS_EXCEL}`,
+      this.filtros(q, usuario),
+    );
+    return excel('Casos excepcionales', 'Casos', COLUMNAS_EXCEL, casos);
   }
 
   @Post()
@@ -124,6 +150,14 @@ export class CasosController {
     if (borrados.length === 0) {
       noExiste('caso_no_existe');
     }
+  }
+
+  // $1..$4 de DONDE.
+  private filtros(q: FiltroRegistrosDto, usuario: UsuarioSesion) {
+    return [
+      ...filtrosComunes(q, localVisible(usuario, q.localId)),
+      patron(q.buscar),
+    ];
   }
 
   // Un caso de otro local se trata igual que uno que no existe.

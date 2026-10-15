@@ -7,6 +7,12 @@ import {
 } from '../auth/sesion.js';
 import { BdService } from '../bd/bd.service.js';
 import { IdPipe } from '../comun/id.pipe.js';
+import {
+  type Columna,
+  excel,
+  EXPORTAN,
+  MAX_FILAS_EXCEL,
+} from '../comun/excel.js';
 import { Pagina } from '../comun/paginacion.js';
 import { contiene, patron } from '../comun/sql.js';
 import { ConductorDto, FiltroConductoresDto } from './conductor.dto.js';
@@ -18,6 +24,7 @@ import {
   OCUPADO,
   SELECT_CONDUCTOR,
 } from './conductores.service.js';
+import { formatearRun } from './run.js';
 
 // $1 texto, $2 tipo, $3 ciudad pedida, $4 local de la cuenta, $5 solo libres.
 // El RUN también se encuentra escrito con puntos: se le quitan antes de comparar.
@@ -30,6 +37,26 @@ const DONDE = `
     and ($3::int is null or d.ciudad_id = $3)
     and ${enSuCiudad('$4')}
     and ($5::boolean is not true or not ${OCUPADO})`;
+
+const COLUMNAS_EXCEL: Columna<Conductor>[] = [
+  { titulo: 'N°', valor: (d) => d.id },
+  { titulo: 'Nombre', valor: (d) => d.nombre },
+  { titulo: 'RUN', valor: (d) => formatearRun(d.run) },
+  {
+    titulo: 'Fecha de nacimiento',
+    valor: (d) => d.fechaNacimiento,
+    tipo: 'fecha',
+  },
+  { titulo: 'Teléfono', valor: (d) => d.telefono },
+  { titulo: 'Correo', valor: (d) => d.email },
+  { titulo: 'Ciudad', valor: (d) => d.ciudad },
+  { titulo: 'Clasificación', valor: (d) => d.tipoConductor },
+  {
+    titulo: 'Última ruta',
+    valor: (d) => d.ultimaRuta?.fecha ?? null,
+    tipo: 'fechaHora',
+  },
+];
 
 // Conductores que hacen las rutas. Todos los roles los ven; los registran y
 // editan admin y asistente.
@@ -48,13 +75,7 @@ export class ConductoresController {
     @Query() q: FiltroConductoresDto,
     @UsuarioActual() usuario: UsuarioSesion,
   ): Promise<Pagina<Conductor> & { resumen: unknown }> {
-    const filtros = [
-      patron(q.buscar),
-      q.tipoConductorId ?? null,
-      q.ciudadId ?? null,
-      usuario.localId,
-      q.libres ?? null,
-    ];
+    const filtros = this.filtros(q, usuario);
     const [items, [{ total }], [resumen]] = await Promise.all([
       this.bd.consultar<Conductor>(
         `${SELECT_CONDUCTOR} ${DONDE} order by lower(d.nombre), d.id limit $6 offset $7`,
@@ -75,6 +96,20 @@ export class ConductoresController {
       ),
     ]);
     return { items, total, resumen };
+  }
+
+  // Planilla con los conductores que cumplen el filtro.
+  @Get('excel')
+  @Roles(...EXPORTAN)
+  async excel(
+    @Query() q: FiltroConductoresDto,
+    @UsuarioActual() usuario: UsuarioSesion,
+  ) {
+    const conductores = await this.bd.consultar<Conductor>(
+      `${SELECT_CONDUCTOR} ${DONDE} order by lower(d.nombre), d.id limit ${MAX_FILAS_EXCEL}`,
+      this.filtros(q, usuario),
+    );
+    return excel('Conductores', 'Conductores', COLUMNAS_EXCEL, conductores);
   }
 
   @Get(':id')
@@ -132,5 +167,16 @@ export class ConductoresController {
       ],
     );
     return this.conductores.buscar(id, usuario);
+  }
+
+  // $1..$5 de DONDE.
+  private filtros(q: FiltroConductoresDto, usuario: UsuarioSesion) {
+    return [
+      patron(q.buscar),
+      q.tipoConductorId ?? null,
+      q.ciudadId ?? null,
+      usuario.localId,
+      q.libres ?? null,
+    ];
   }
 }

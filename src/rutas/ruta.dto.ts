@@ -27,6 +27,13 @@ export const ESTADOS_RUTA = [
 ] as const;
 export type EstadoRuta = (typeof ESTADOS_RUTA)[number];
 
+export const NOMBRE_ESTADO_RUTA: Record<EstadoRuta, string> = {
+  en_espera: 'En espera',
+  en_ejecucion: 'En ejecución',
+  pendiente: 'Pendiente',
+  finalizada: 'Finalizada',
+};
+
 // Más coolers de los que caben en un camión: solo para acotar la petición.
 const MAX_COOLERS = 300;
 

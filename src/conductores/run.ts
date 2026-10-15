@@ -8,6 +8,14 @@ export function normalizarRun(texto: string): string {
     : limpio;
 }
 
+// Como se le muestra a la gente: "12.345.678-K" (en las planillas).
+export function formatearRun(run: string): string {
+  const [numero, verificador] = run.split('-');
+  return verificador === undefined
+    ? run
+    : `${numero.replace(/\B(?=(\d{3})+$)/g, '.')}-${verificador}`;
+}
+
 // Comprueba el formato y el dígito verificador (módulo 11): atrapa los errores
 // de tipeo antes de que queden guardados.
 export function runValido(run: string): boolean {
