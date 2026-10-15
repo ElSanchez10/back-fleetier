@@ -39,6 +39,7 @@ npm test
 | `src/coolers/` | inventario de coolers: listado con filtros, ficha, alta, edición y etiquetas con código de barras en PDF |
 | `src/conductores/` | conductores: listado con filtros, ficha, alta y edición; los eventos de su calendario, sus cuentas en aplicaciones externas (cifradas) y sus rutas |
 | `src/rutas/` | rutas de reparto: listado, resumen del día, registro, edición, inicio, cierre, problemas y retorno de coolers |
+| `src/registros/` | lo demás que se anota en Actividad: pedidos especiales, atrasos y casos excepcionales |
 
 Cada módulo de la app (rutas…) agrega su carpeta en `src/`.
 
@@ -115,6 +116,20 @@ local. Un registro de otro local se responde igual que uno que no existe (`404`)
   quienes operan rutas; los elimina solo `admin`.
 - Las fechas con hora viajan como `AAAA-MM-DDTHH:MM` en hora de Chile; en la
   base se guardan con zona horaria.
+
+## Pedidos especiales, atrasos y casos
+
+Registros sueltos de un local en un día (`fecha`, hasta hoy). Todos se listan
+con `?fechaDesde&fechaHasta&localId` y los elimina solo `admin`.
+
+- `/api/pedidos-especiales`: los cuatro roles los anotan y corrigen. Solo
+  `admin` y `asistente` ven y fijan el `precio`, marcan `extraordinario` y
+  agregan un destino nuevo escrito en `otroDestino`. Para los demás, el precio
+  es el base del destino y no pueden corregir un pedido extraordinario. Filtra
+  por `extraordinario` y busca por destino o descripción.
+- `/api/atrasos` (`despacho` o `picking`) y `/api/casos` (de un conductor): los
+  anotan y corrigen `admin`, `encargado` y `coordinador`. Los atrasos se
+  filtran por `tipo`; los casos se buscan por conductor o descripción.
 
 ## Catálogos
 
