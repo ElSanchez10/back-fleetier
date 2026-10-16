@@ -16,7 +16,8 @@ import { Mantenedor } from './mantenedor.js';
 
 // Tipos de cooler: marca, capacidad y el color con que se muestran.
 // Todos los roles pueden leerlos (los usan los formularios de la app); solo un
-// admin los modifica.
+// admin los modifica. Quien registra un cooler puede además crear uno nuevo
+// junto con él (POST /coolers con `tipoNuevo`).
 @Controller('tipos-cooler')
 export class TiposCoolerController {
   private readonly mantenedor: Mantenedor<TipoCoolerDto>;

@@ -57,7 +57,9 @@ local. Un registro de otro local se responde igual que uno que no existe (`404`)
   devuelve un `resumen` (total, disponibles y en ruta) de todo lo que la cuenta
   puede ver.
 - Registrar: `admin` y `encargado`. El cooler nace disponible y el back le
-  asigna un código de barras de ocho dígitos. Editar (incluidos código y
+  asigna un código de barras de ocho dígitos. En vez de `tipoCoolerId` puede
+  venir `tipoNuevo` (`marca`, `capacidad`, `color`): el tipo se crea junto con
+  el cooler, como en la versión Laravel. Editar (incluidos código y
   estado): solo `admin`.
 - Etiquetas (`admin`, `asistente` y `encargado`): `GET /api/coolers/etiquetas`
   entrega un PDF con las de todos los coolers que cumplen el filtro y

@@ -32,11 +32,11 @@ import { Pagina } from '../comun/paginacion.js';
 import { contiene, ordenarPor, patron } from '../comun/sql.js';
 import { DIA_RUTA } from '../rutas/rutas.service.js';
 import {
-  CoolerDto,
   EditarCoolerDto,
   type EstadoCooler,
   FiltroCoolersDto,
   FiltroRutasCoolerDto,
+  NuevoCoolerDto,
 } from './cooler.dto.js';
 import { armarEtiquetas, barrasSvg } from './etiquetas.js';
 
@@ -289,24 +289,39 @@ export class CoolersController {
     );
   }
 
-  // El cooler nace disponible y con un código de barras nuevo.
+  // El cooler nace disponible y con un código de barras nuevo. Si trae
+  // `tipoNuevo`, ese tipo se crea en la misma sentencia: o quedan los dos o
+  // ninguno.
   @Post()
   @Roles('admin', 'encargado')
-  async crear(@Body() dto: CoolerDto, @UsuarioActual() usuario: UsuarioSesion) {
+  async crear(
+    @Body() dto: NuevoCoolerDto,
+    @UsuarioActual() usuario: UsuarioSesion,
+  ) {
     exigirLocal(usuario, dto.localId);
+    const tipo = dto.tipoNuevo;
     for (let intento = 1; ; intento++) {
       try {
         const [{ id }] = await this.bd.consultar<{ id: number }>(
-          `insert into cooler (nombre, codigo, fecha_adquisicion, tiene_tapa, tipo_cooler_id, local_id)
-           values ($1, $2, $3, $4, $5, $6) returning id`,
+          `with tipo as (
+             insert into tipo_cooler (marca, capacidad, color)
+             select $7, $8::capacidad_cooler, $9::color where $7::text is not null
+             returning id
+           )
+           insert into cooler (nombre, codigo, fecha_adquisicion, tiene_tapa, tipo_cooler_id, local_id)
+           values ($1, $2, $3, $4, coalesce((select id from tipo), $5::int), $6)
+           returning id`,
           [
             dto.nombre,
             // Ocho dígitos al azar: cortos de leer y de escribir a mano.
             String(randomInt(0, 100_000_000)).padStart(8, '0'),
             dto.fechaAdquisicion,
             dto.tieneTapa,
-            dto.tipoCoolerId,
+            tipo ? null : dto.tipoCoolerId,
             dto.localId,
+            tipo?.marca ?? null,
+            tipo?.capacidad ?? null,
+            tipo?.color ?? null,
           ],
         );
         return this.buscar(id, usuario);
