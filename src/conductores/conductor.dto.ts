@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsDefined,
   IsEmail,
   IsInt,
   IsNotEmpty,
@@ -11,9 +12,12 @@ import {
   MaxLength,
   Min,
   Validate,
+  ValidateIf,
+  ValidateNested,
   ValidatorConstraint,
   type ValidatorConstraintInterface,
 } from 'class-validator';
+import { TipoEventoDto } from '../catalogos/catalogo.dto.js';
 import { ID_MAXIMO } from '../comun/id.pipe.js';
 import { PaginaDto } from '../comun/paginacion.js';
 import { recortar } from '../comun/transformaciones.js';
@@ -95,11 +99,23 @@ export class FiltroConductoresDto extends PaginaDto {
   libres?: boolean;
 }
 
+// Como en la versión Laravel, en vez de un tipo existente (`tipoEventoId`)
+// puede venir uno nuevo ("Otro": `tipoNuevo`), que se crea junto con el evento.
 export class EventoDto {
+  @ValidateIf((o: EventoDto) => o.tipoNuevo === undefined)
   @IsInt()
   @Min(1)
   @Max(ID_MAXIMO)
-  tipoEventoId: number;
+  tipoEventoId?: number;
+
+  // Si viene, siempre se valida (aunque venga también `tipoEventoId`).
+  @ValidateIf(
+    (o: EventoDto) => o.tipoNuevo !== undefined || o.tipoEventoId === undefined,
+  )
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => TipoEventoDto)
+  tipoNuevo?: TipoEventoDto;
 
   @Transform(recortar)
   @IsString()

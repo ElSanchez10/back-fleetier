@@ -33,6 +33,17 @@ const SELECT_EVENTO = `
   from evento_conductor e
   join tipo_evento t on t.id = e.tipo_evento_id`;
 
+// El tipo del evento como parámetros: el id de uno existente o, si viene
+// `tipoNuevo`, su nombre y color (para crearlo en la misma sentencia).
+function tipoDe(dto: EventoDto) {
+  const nuevo = dto.tipoNuevo;
+  return {
+    id: nuevo ? null : dto.tipoEventoId,
+    nombre: nuevo?.nombre ?? null,
+    color: nuevo?.color ?? null,
+  };
+}
+
 function noExiste(): never {
   throw new NotFoundException({ statusCode: 404, codigo: 'evento_no_existe' });
 }
@@ -71,10 +82,25 @@ export class EventosController {
     @UsuarioActual() usuario: UsuarioSesion,
   ) {
     await this.conductores.buscar(id, usuario);
+    const tipo = tipoDe(dto);
     const [evento] = await this.bd.consultar<{ id: number }>(
-      `insert into evento_conductor (conductor_id, tipo_evento_id, titulo, descripcion, desde, hasta)
-       values ($1, $2, $3, $4, $5, $6) returning id`,
-      [id, dto.tipoEventoId, dto.titulo, dto.descripcion, dto.desde, dto.hasta],
+      `with tipo as (
+         insert into tipo_evento (nombre, color)
+         select $7, $8::color where $7::text is not null
+         returning id
+       )
+       insert into evento_conductor (conductor_id, tipo_evento_id, titulo, descripcion, desde, hasta)
+       values ($1, coalesce((select id from tipo), $2::int), $3, $4, $5, $6) returning id`,
+      [
+        id,
+        tipo.id,
+        dto.titulo,
+        dto.descripcion,
+        dto.desde,
+        dto.hasta,
+        tipo.nombre,
+        tipo.color,
+      ],
     );
     return this.uno(evento.id);
   }
@@ -87,18 +113,30 @@ export class EventosController {
     @UsuarioActual() usuario: UsuarioSesion,
   ) {
     await this.conductores.buscar(id, usuario);
+    // El tipo nuevo solo se crea si el evento existe.
+    const tipo = tipoDe(dto);
     const cambiados = await this.bd.consultar(
-      `update evento_conductor
-       set tipo_evento_id = $3, titulo = $4, descripcion = $5, desde = $6, hasta = $7
+      `with tipo as (
+         insert into tipo_evento (nombre, color)
+         select $8, $9::color
+         where $8::text is not null
+           and exists (select 1 from evento_conductor where id = $1 and conductor_id = $2)
+         returning id
+       )
+       update evento_conductor
+       set tipo_evento_id = coalesce((select id from tipo), $3::int), titulo = $4,
+           descripcion = $5, desde = $6, hasta = $7
        where id = $1 and conductor_id = $2 returning id`,
       [
         eventoId,
         id,
-        dto.tipoEventoId,
+        tipo.id,
         dto.titulo,
         dto.descripcion,
         dto.desde,
         dto.hasta,
+        tipo.nombre,
+        tipo.color,
       ],
     );
     if (cambiados.length === 0) {

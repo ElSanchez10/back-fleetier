@@ -87,7 +87,9 @@ local. Un registro de otro local se responde igual que uno que no existe (`404`)
   guion (`12345678-K`) y se valida su dígito verificador (`src/conductores/run.ts`).
 - Eventos del calendario (`/api/conductores/:id/eventos`): los lee quien puede
   ver al conductor, con `?desde=AAAA-MM-DD&hasta=AAAA-MM-DD`; los anotan,
-  corrigen y eliminan `admin` y `asistente`.
+  corrigen y eliminan `admin` y `asistente`. En vez de `tipoEventoId` puede
+  venir `tipoNuevo` (`nombre`, `color`): como la opción "Otro" de la versión
+  Laravel, el tipo se crea junto con el evento.
 - Cuentas en aplicaciones externas (`/api/conductores/:id/cuentas`): solo
   `admin` y `asistente` (eliminar, solo `admin`). La contraseña se guarda
   cifrada con AES-256-GCM (`src/conductores/cifrado.ts`) y no viaja en el
@@ -175,7 +177,8 @@ mayúsculas ni tildes.
 Rutas, pedidos especiales, atrasos y casos se ordenan además por columna con
 `&orden=fecha&sentido=asc` (`ordenarPor` en `src/comun/sql.ts`): cada listado
 dice qué columnas admite y un `orden` que no está entre ellas se ignora. Sin
-`orden` van de la fecha más reciente a la más antigua.
+`orden` van de la fecha más reciente a la más antigua. Los usuarios se ordenan
+igual (`id`, `nombre`, `correo`, `local`); sin `orden` van por `id`.
 
 ## Planillas Excel
 

@@ -66,7 +66,11 @@ export class NuevoCoolerDto extends DatosCoolerDto {
   @Max(ID_MAXIMO)
   tipoCoolerId?: number;
 
-  @ValidateIf((o: NuevoCoolerDto) => o.tipoCoolerId === undefined)
+  // Si viene, siempre se valida (aunque venga también `tipoCoolerId`).
+  @ValidateIf(
+    (o: NuevoCoolerDto) =>
+      o.tipoNuevo !== undefined || o.tipoCoolerId === undefined,
+  )
   @IsDefined()
   @ValidateNested()
   @Type(() => TipoCoolerDto)

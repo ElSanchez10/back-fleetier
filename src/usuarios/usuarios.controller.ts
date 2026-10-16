@@ -16,7 +16,7 @@ import { UsuarioActual, type UsuarioSesion } from '../auth/sesion.js';
 import { BdService } from '../bd/bd.service.js';
 import { IdPipe } from '../comun/id.pipe.js';
 import { Pagina } from '../comun/paginacion.js';
-import { contiene, patron } from '../comun/sql.js';
+import { contiene, ordenarPor, patron } from '../comun/sql.js';
 import {
   ListarUsuariosDto,
   ROLES_CON_LOCAL,
@@ -39,6 +39,14 @@ const SELECT_USUARIO = `
 function noExiste(): never {
   throw new NotFoundException({ statusCode: 404, codigo: 'usuario_no_existe' });
 }
+
+// Columnas por las que se puede ordenar el listado, como en la versión Laravel.
+const ORDEN = {
+  id: 'u.id',
+  nombre: 'lower(u.nombre)',
+  correo: 'lower(u.email)',
+  local: 'lower(l.nombre)',
+};
 
 // El local solo vale para los roles que operan uno.
 const localDe = (dto: UsuarioDto) =>
@@ -67,7 +75,7 @@ export class UsuariosController {
     const filtros = [patron(q.buscar), q.local ?? null];
     const [items, [{ total }]] = await Promise.all([
       this.bd.consultar(
-        `${SELECT_USUARIO} ${donde} order by lower(u.nombre), u.id limit $3 offset $4`,
+        `${SELECT_USUARIO} ${donde} ${ordenarPor(q, ORDEN, 'u.id', 'u.id')} limit $3 offset $4`,
         [...filtros, q.limite, q.desde],
       ),
       this.bd.consultar<{ total: number }>(
