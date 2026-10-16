@@ -28,13 +28,15 @@ import {
   EXPORTAN,
   MAX_FILAS_EXCEL,
 } from '../comun/excel.js';
-import { Pagina, PaginaDto } from '../comun/paginacion.js';
-import { contiene, patron } from '../comun/sql.js';
+import { Pagina } from '../comun/paginacion.js';
+import { contiene, ordenarPor, patron } from '../comun/sql.js';
+import { DIA_RUTA } from '../rutas/rutas.service.js';
 import {
   CoolerDto,
   EditarCoolerDto,
   type EstadoCooler,
   FiltroCoolersDto,
+  FiltroRutasCoolerDto,
 } from './cooler.dto.js';
 import { armarEtiquetas, barrasSvg } from './etiquetas.js';
 
@@ -231,20 +233,28 @@ export class CoolersController {
     return barrasSvg((await this.buscar(id, usuario)).codigo);
   }
 
-  // Las rutas que ha hecho el cooler, de la más reciente a la más antigua.
+  // Las rutas que ha hecho el cooler en un rango de días, de la más reciente
+  // a la más antigua (o por fecha, con `orden=fecha`).
   @Get(':id/rutas')
   async rutas(
     @Param('id', IdPipe) id: number,
-    @Query() q: PaginaDto,
+    @Query() q: FiltroRutasCoolerDto,
     @UsuarioActual() usuario: UsuarioSesion,
   ): Promise<Pagina<unknown>> {
     await this.buscar(id, usuario);
+    // $1 cooler, $2 desde, $3 hasta.
+    const donde = `
+      where rc.cooler_id = $1
+        and ($2::date is null or ${DIA_RUTA} >= $2)
+        and ($3::date is null or ${DIA_RUTA} <= $3)`;
+    const filtros = [id, q.fechaDesde ?? null, q.fechaHasta ?? null];
     const [items, [{ total }]] = await Promise.all([
       this.bd.consultar(
         `select r.id,
                 ${HORA_LOCAL('r.fecha')} as fecha,
                 r.estado,
                 l.nombre as local,
+                r.conductor_id as "conductorId",
                 d.nombre as conductor,
                 rc.devuelto,
                 ${HORA_LOCAL('rc.devuelto_en')} as "devueltoEn"
@@ -252,14 +262,15 @@ export class CoolersController {
          join ruta r on r.id = rc.ruta_id
          join local l on l.id = r.local_id
          left join conductor d on d.id = r.conductor_id
-         where rc.cooler_id = $1
-         order by r.fecha desc, r.id desc
-         limit $2 offset $3`,
-        [id, q.limite, q.desde],
+         ${donde}
+         ${ordenarPor(q, { fecha: 'r.fecha' }, 'r.fecha desc, r.id desc', 'r.id')}
+         limit $4 offset $5`,
+        [...filtros, q.limite, q.desde],
       ),
       this.bd.consultar<{ total: number }>(
-        'select count(*)::int as total from ruta_cooler where cooler_id = $1',
-        [id],
+        `select count(*)::int as total
+         from ruta_cooler rc join ruta r on r.id = rc.ruta_id ${donde}`,
+        filtros,
       ),
     ]);
     return { items, total };

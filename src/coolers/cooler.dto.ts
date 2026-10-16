@@ -75,3 +75,14 @@ export class FiltroCoolersDto extends PaginaDto {
   @Max(ID_MAXIMO)
   localId?: number;
 }
+
+// Filtros del historial de rutas de un cooler: días de Chile, ambos incluidos.
+export class FiltroRutasCoolerDto extends PaginaDto {
+  @IsOptional()
+  @EsFecha()
+  fechaDesde?: string;
+
+  @IsOptional()
+  @EsFecha()
+  fechaHasta?: string;
+}
