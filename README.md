@@ -162,7 +162,13 @@ Una cuenta con local recibe en `GET /api/locales` solo el suyo.
 - El primer admin lo crea el back al partir, con el correo de `ADMIN_CORREO`.
 - Un admin crea las demás cuentas y restablece contraseñas (`/api/usuarios`).
   Solo `encargado` y `coordinador` pueden tener local. Nadie cambia su propio
-  rol ni elimina su propia cuenta: así siempre queda al menos un admin.
+  rol ni elimina su propia cuenta desde `/api/usuarios`.
+- "Administrar Cuenta" (como en la versión Laravel): `PUT /api/sesion` corrige
+  el nombre y el correo propios; `GET /api/sesion/dispositivos` lista las
+  sesiones abiertas (navegador, IP y última actividad); `POST
+  /api/sesion/cerrar-otras` las cierra y `POST /api/sesion/eliminar-cuenta`
+  (solo admin) borra la propia cuenta. Las dos últimas piden la contraseña, y
+  la cuenta no se borra si es el único admin (`ultimo_admin`).
 - Tras cinco ingresos fallidos seguidos, el correo queda bloqueado 15 minutos.
   La cuenta se lleva en la base (tabla `intento_ingreso`), así que sobrevive a
   un reinicio del back.
@@ -188,7 +194,13 @@ todas las filas que cumplen el filtro (no un tramo). Lo mismo
 `GET /api/resumen/locales/excel?mes=AAAA-MM`. Las descargan `admin`,
 `asistente` y `encargado`, como en Laravel. Las arma `src/comun/excel.ts` con
 `exceljs`: títulos en negrita, primera fila fija, filtro en cada columna y
-fechas como fechas de Excel (en hora de Chile).
+fechas como fechas de Excel (en hora de Chile). Las columnas, el nombre de la
+hoja y el del archivo ("Historial Rutas (Generado 15-10-2026).xlsx") son los
+de la versión Laravel.
+
+Las etiquetas de los coolers (`GET /api/coolers/etiquetas` y
+`GET /api/coolers/:id/etiqueta`) salen en un PDF A4 apaisado, cuatro por fila,
+como en Laravel (`all-barcode.pdf` y `barcode.pdf`).
 
 `package.json` fuerza `uuid` ≥ 11.1.1 (`overrides`): `exceljs` trae una versión
 con un aviso de seguridad, aunque no usa la parte afectada.

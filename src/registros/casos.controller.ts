@@ -62,8 +62,9 @@ const ORDEN = {
   conductor: 'lower(d.nombre)',
 };
 
+// Las mismas columnas que la planilla de la versión Laravel.
 const COLUMNAS_EXCEL: Columna<Caso>[] = [
-  { titulo: 'N°', valor: (c) => c.id },
+  { titulo: 'Identificador', valor: (c) => c.id },
   { titulo: 'Fecha', valor: (c) => c.fecha, tipo: 'fecha' },
   { titulo: 'Local', valor: (c) => c.local },
   { titulo: 'Ciudad', valor: (c) => c.ciudad },
@@ -116,7 +117,7 @@ export class CasosController {
        order by x.fecha desc, x.id desc limit ${MAX_FILAS_EXCEL}`,
       this.filtros(q, usuario),
     );
-    return excel('Casos excepcionales', 'Casos', COLUMNAS_EXCEL, casos);
+    return excel('Historial Casos', 'Casos', COLUMNAS_EXCEL, casos);
   }
 
   @Post()

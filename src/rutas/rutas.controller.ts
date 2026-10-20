@@ -26,6 +26,7 @@ import {
   MAX_FILAS_EXCEL,
 } from '../comun/excel.js';
 import { contiene, HOY, ordenarPor, patron } from '../comun/sql.js';
+import { hoyEnChile } from '../comun/validaciones.js';
 import { ConductoresService } from '../conductores/conductores.service.js';
 import {
   FiltroRutasDto,
@@ -58,17 +59,19 @@ const ORDEN = {
   estado: 'r.estado',
 };
 
+// Las mismas columnas que la planilla de la versión Laravel.
 const COLUMNAS_EXCEL: Columna<Ruta>[] = [
-  { titulo: 'N°', valor: (r) => r.id },
-  { titulo: 'Salida', valor: (r) => r.fecha, tipo: 'fechaHora' },
+  { titulo: 'Identificador', valor: (r) => r.id },
+  { titulo: 'Fecha', valor: (r) => r.fecha, tipo: 'fechaHora' },
+  {
+    titulo: 'Cantidad Ordenes de Pedido',
+    valor: (r) => r.ordenes,
+    tipo: 'numero',
+  },
   { titulo: 'Local', valor: (r) => r.local },
   { titulo: 'Ciudad', valor: (r) => r.ciudad },
+  { titulo: 'Estado Ruta', valor: (r) => NOMBRE_ESTADO_RUTA[r.estado] },
   { titulo: 'Conductor', valor: (r) => r.conductor },
-  { titulo: 'Órdenes', valor: (r) => r.ordenes, tipo: 'numero' },
-  { titulo: 'Coolers', valor: (r) => r.coolers, tipo: 'numero' },
-  { titulo: 'Coolers devueltos', valor: (r) => r.devueltos, tipo: 'numero' },
-  { titulo: 'Problemas', valor: (r) => r.problemas, tipo: 'numero' },
-  { titulo: 'Estado', valor: (r) => NOMBRE_ESTADO_RUTA[r.estado] },
 ];
 
 // Rutas de reparto. Todos los roles las ven; las operan admin, encargado y
@@ -134,7 +137,13 @@ export class RutasController {
       `${SELECT_RUTA} ${DONDE} order by r.fecha desc, r.id desc limit ${MAX_FILAS_EXCEL}`,
       this.filtros(q, usuario),
     );
-    return excel('Rutas', 'Rutas', COLUMNAS_EXCEL, rutas);
+    const [anio, mes, dia] = hoyEnChile().split('-');
+    return excel(
+      'Historial Rutas',
+      `Rutas al ${dia}-${mes}-${anio}`,
+      COLUMNAS_EXCEL,
+      rutas,
+    );
   }
 
   // La ruta con sus coolers y sus problemas.

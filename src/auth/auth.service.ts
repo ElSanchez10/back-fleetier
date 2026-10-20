@@ -22,6 +22,12 @@ const MAX_INTENTOS = 5;
 const VENTANA_INTENTOS = `interval '15 minutes'`;
 const LARGO_MINIMO = 8;
 
+// Desde dónde se abre una sesión: el User-Agent y la IP de la persona.
+export interface Dispositivo {
+  navegador: string | null;
+  ip: string | null;
+}
+
 const huella = (token: string) =>
   createHash('sha256').update(token).digest('hex');
 
@@ -113,7 +119,13 @@ export class AuthService implements OnApplicationBootstrap {
 
   // Comprueba correo y contraseña y abre una sesión. Devuelve el token que va
   // en la cookie; en la base queda solo su huella.
-  async ingresar(correo: string, clave: string, recordar: boolean) {
+  // `dispositivo`: desde dónde entra, para la lista de sesiones de su cuenta.
+  async ingresar(
+    correo: string,
+    clave: string,
+    recordar: boolean,
+    dispositivo: Dispositivo,
+  ) {
     const llave = correo.toLowerCase();
     await this.exigirPocosFallos(llave);
 
@@ -139,8 +151,15 @@ export class AuthService implements OnApplicationBootstrap {
     const token = randomBytes(32).toString('base64url');
     const duracion = recordar ? DURACION_RECORDADA_MS : DURACION_NORMAL_MS;
     await this.bd.consultar(
-      `insert into sesion (usuario_id, token_hash, expira_en) values ($1, $2, now() + $3 * interval '1 millisecond')`,
-      [cuenta.id, huella(token), duracion],
+      `insert into sesion (usuario_id, token_hash, expira_en, navegador, ip)
+       values ($1, $2, now() + $3 * interval '1 millisecond', $4, $5)`,
+      [
+        cuenta.id,
+        huella(token),
+        duracion,
+        dispositivo.navegador,
+        dispositivo.ip,
+      ],
     );
     // De paso se limpian las sesiones vencidas de esta cuenta.
     await this.bd.consultar(
@@ -150,13 +169,19 @@ export class AuthService implements OnApplicationBootstrap {
     return { token, usuario: (await this.usuarioDeToken(token))! };
   }
 
-  // El usuario dueño de una sesión vigente, o null.
+  // El usuario dueño de una sesión vigente, o null. De paso anota que la
+  // sesión se usó (a lo más una vez por minuto, para no escribir en cada petición).
   async usuarioDeToken(token: string | null): Promise<UsuarioSesion | null> {
     if (!token) {
       return null;
     }
     const [usuario] = await this.bd.consultar<UsuarioSesion>(
-      `select u.id,
+      `with uso as (
+         update sesion set ultima_actividad = now()
+         where token_hash = $1 and expira_en > now()
+           and ultima_actividad < now() - interval '1 minute'
+       )
+       select u.id,
               u.nombre,
               u.email as correo,
               u.rol,
@@ -209,6 +234,73 @@ export class AuthService implements OnApplicationBootstrap {
       `delete from sesion where usuario_id = $1 and token_hash <> $2`,
       [usuarioId, huella(token)],
     );
+  }
+
+  // Corrige el nombre y el correo de la propia cuenta.
+  async actualizarPerfil(usuarioId: number, nombre: string, correo: string) {
+    await this.bd.consultar(
+      `update usuario set nombre = $2, email = $3 where id = $1`,
+      [usuarioId, nombre, correo.toLowerCase()],
+    );
+  }
+
+  // Las sesiones vigentes de una cuenta, la más reciente primero. `actual`
+  // marca la de quien pregunta.
+  async sesiones(usuarioId: number, token: string) {
+    return this.bd.consultar<{
+      navegador: string | null;
+      ip: string | null;
+      ultimaActividad: string;
+      actual: boolean;
+    }>(
+      `select navegador, ip, ultima_actividad as "ultimaActividad",
+              token_hash = $2 as actual
+       from sesion
+       where usuario_id = $1 and expira_en > now()
+       order by token_hash = $2 desc, ultima_actividad desc`,
+      [usuarioId, huella(token)],
+    );
+  }
+
+  // Cierra las demás sesiones de la cuenta, previa confirmación con la contraseña.
+  async cerrarOtrasSesiones(usuarioId: number, token: string, clave: string) {
+    await this.exigirClave(usuarioId, clave);
+    await this.bd.consultar(
+      `delete from sesion where usuario_id = $1 and token_hash <> $2`,
+      [usuarioId, huella(token)],
+    );
+  }
+
+  // Elimina la propia cuenta, previa confirmación con la contraseña. Siempre
+  // debe quedar al menos un admin.
+  async eliminarCuenta(usuarioId: number, clave: string) {
+    await this.exigirClave(usuarioId, clave);
+    const borradas = await this.bd.consultar(
+      `delete from usuario
+       where id = $1
+         and exists (select 1 from usuario where rol = 'admin' and id <> $1)
+       returning id`,
+      [usuarioId],
+    );
+    if (borradas.length === 0) {
+      throw new BadRequestException({
+        statusCode: 400,
+        codigo: 'ultimo_admin',
+      });
+    }
+  }
+
+  private async exigirClave(usuarioId: number, clave: string) {
+    const [{ claveHash }] = await this.bd.consultar<{ claveHash: string }>(
+      `select clave_hash as "claveHash" from usuario where id = $1`,
+      [usuarioId],
+    );
+    if (!(await claveCorrecta(clave, claveHash))) {
+      throw new BadRequestException({
+        statusCode: 400,
+        codigo: 'clave_incorrecta',
+      });
+    }
   }
 
   // Los ingresos fallidos se cuentan en la base (tabla intento_ingreso), no en

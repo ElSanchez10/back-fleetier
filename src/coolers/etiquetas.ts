@@ -24,6 +24,9 @@ const ANCHO_CELDA = (ANCHO - 2 * MARGEN) / COLUMNAS;
 const FILAS = Math.floor((ALTO - 2 * MARGEN) / ALTO_CELDA);
 const ANCHO_BARRAS = 150;
 const ALTO_BARRAS = 50;
+// Relleno de la celda y sangría del código escrito (20 y 45 px en Laravel).
+const RELLENO = 15;
+const SANGRIA_CODIGO = 34;
 
 // PDF para imprimir y pegar: por cada cooler su número, el código de barras y
 // el código escrito debajo.
@@ -48,13 +51,15 @@ export async function armarEtiquetas(etiquetas: Etiqueta[]): Promise<Buffer> {
     }
     const x = MARGEN + (enPagina % COLUMNAS) * ANCHO_CELDA;
     const y = MARGEN + Math.floor(enPagina / COLUMNAS) * ALTO_CELDA;
-    const centrado = { width: ANCHO_CELDA, align: 'center' } as const;
+    // Como en la versión Laravel: todo alineado a la izquierda de la celda, y
+    // el código escrito un poco más adentro, bajo las barras.
+    const izquierda = x + RELLENO;
 
     doc
-      .font('Helvetica-Bold')
-      .fontSize(14)
-      .text(`Cooler ${etiqueta.nombre}`, x, y + 12, {
-        ...centrado,
+      .font('Helvetica')
+      .fontSize(13.5)
+      .text(`Cooler ${etiqueta.nombre}`, izquierda, y + 12, {
+        width: ANCHO_CELDA - RELLENO,
         lineBreak: false,
       });
     const imagen = await toBuffer({
@@ -63,14 +68,16 @@ export async function armarEtiquetas(etiquetas: Etiqueta[]): Promise<Buffer> {
       height: 14,
       scale: 3,
     });
-    doc.image(imagen, x + (ANCHO_CELDA - ANCHO_BARRAS) / 2, y + 34, {
+    doc.image(imagen, izquierda, y + 34, {
       fit: [ANCHO_BARRAS, ALTO_BARRAS],
-      align: 'center',
     });
     doc
       .font('Helvetica')
-      .fontSize(12)
-      .text(etiqueta.codigo, x, y + 90, { ...centrado, lineBreak: false });
+      .fontSize(12.75)
+      .text(etiqueta.codigo, izquierda + SANGRIA_CODIGO, y + 92, {
+        width: ANCHO_CELDA - RELLENO - SANGRIA_CODIGO,
+        lineBreak: false,
+      });
   }
   if (etiquetas.length === 0) {
     doc.font('Helvetica').fontSize(12).text('No hay coolers que mostrar.');

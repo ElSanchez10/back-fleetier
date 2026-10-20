@@ -42,11 +42,15 @@ interface ActividadLocal {
   ordenes: number;
 }
 
+// Las mismas columnas que la planilla de la versión Laravel.
 const COLUMNAS_EXCEL: Columna<ActividadLocal>[] = [
   { titulo: 'Ciudad', valor: (a) => a.ciudad },
   { titulo: 'Local', valor: (a) => a.local },
-  { titulo: 'Rutas', valor: (a) => a.rutas, tipo: 'numero' },
-  { titulo: 'Órdenes de pedido', valor: (a) => a.ordenes, tipo: 'numero' },
+  {
+    titulo: 'Cantidad Ordenes de Pedido',
+    valor: (a) => a.ordenes,
+    tipo: 'numero',
+  },
 ];
 
 // Lo que muestra la pantalla de inicio. Una cuenta con local ve solo lo de su
@@ -121,8 +125,8 @@ export class ResumenController {
   ) {
     const [anio, mes] = q.mes.split('-');
     return excel(
-      `Actividad por local ${mes}-${anio}`,
-      `Locales ${mes}-${anio}`,
+      'Historial Actividad por Local',
+      `Act. Locales periodo ${mes}-${anio}`,
       COLUMNAS_EXCEL,
       await this.locales(q, usuario),
     );

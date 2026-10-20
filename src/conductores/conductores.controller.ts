@@ -38,24 +38,19 @@ const DONDE = `
     and ${enSuCiudad('$4')}
     and ($5::boolean is not true or not ${OCUPADO})`;
 
+// Las mismas columnas que la planilla de la versión Laravel.
 const COLUMNAS_EXCEL: Columna<Conductor>[] = [
-  { titulo: 'N°', valor: (d) => d.id },
+  { titulo: 'Identificador', valor: (d) => d.id },
   { titulo: 'Nombre', valor: (d) => d.nombre },
   { titulo: 'RUN', valor: (d) => formatearRun(d.run) },
   {
-    titulo: 'Fecha de nacimiento',
+    titulo: 'Fecha de Nacimiento',
     valor: (d) => d.fechaNacimiento,
     tipo: 'fecha',
   },
-  { titulo: 'Teléfono', valor: (d) => d.telefono },
+  { titulo: 'Contacto', valor: (d) => d.telefono },
   { titulo: 'Correo', valor: (d) => d.email },
-  { titulo: 'Ciudad', valor: (d) => d.ciudad },
   { titulo: 'Clasificación', valor: (d) => d.tipoConductor },
-  {
-    titulo: 'Última ruta',
-    valor: (d) => d.ultimaRuta?.fecha ?? null,
-    tipo: 'fechaHora',
-  },
 ];
 
 // Conductores que hacen las rutas. Todos los roles los ven; los registran y
@@ -109,7 +104,7 @@ export class ConductoresController {
       `${SELECT_CONDUCTOR} ${DONDE} order by lower(d.nombre), d.id limit ${MAX_FILAS_EXCEL}`,
       this.filtros(q, usuario),
     );
-    return excel('Conductores', 'Conductores', COLUMNAS_EXCEL, conductores);
+    return excel('Drivers', 'Drivers', COLUMNAS_EXCEL, conductores);
   }
 
   @Get(':id')

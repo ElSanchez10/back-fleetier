@@ -64,16 +64,17 @@ const ORDEN = {
   cantidad: 'x.cantidad',
 };
 
+// Las mismas columnas que la planilla de la versión Laravel.
 const COLUMNAS_EXCEL: Columna<Atraso>[] = [
-  { titulo: 'N°', valor: (a) => a.id },
+  { titulo: 'Identificador', valor: (a) => a.id },
   { titulo: 'Fecha', valor: (a) => a.fecha, tipo: 'fecha' },
   { titulo: 'Local', valor: (a) => a.local },
   { titulo: 'Ciudad', valor: (a) => a.ciudad },
+  { titulo: 'Cantidad', valor: (a) => a.cantidad, tipo: 'numero' },
   {
     titulo: 'Tipo',
     valor: (a) => (a.tipo === 'despacho' ? 'Despacho' : 'Picking'),
   },
-  { titulo: 'Órdenes', valor: (a) => a.cantidad, tipo: 'numero' },
 ];
 
 // Órdenes que un local dejó atrasadas en un día. Todos los roles las ven; las
@@ -116,7 +117,7 @@ export class AtrasosController {
        order by x.fecha desc, x.id desc limit ${MAX_FILAS_EXCEL}`,
       this.filtros(q, usuario),
     );
-    return excel('Atrasos', 'Atrasos', COLUMNAS_EXCEL, atrasos);
+    return excel('Historial Atrasos', 'Atrasos', COLUMNAS_EXCEL, atrasos);
   }
 
   @Post()

@@ -109,12 +109,12 @@ const NOMBRE_CAPACIDAD: Record<string, string> = {
   grande: 'Grande',
 };
 
+// Las mismas columnas que la planilla de la versión Laravel.
 const COLUMNAS_EXCEL: Columna<Cooler>[] = [
-  { titulo: 'N°', valor: (k) => k.id },
+  { titulo: 'Identificador', valor: (k) => k.id },
   { titulo: 'Cooler', valor: (k) => k.nombre },
-  { titulo: 'Código', valor: (k) => k.codigo },
   { titulo: 'Adquisición', valor: (k) => k.fechaAdquisicion, tipo: 'fecha' },
-  { titulo: 'Tapa', valor: (k) => (k.tieneTapa ? 'Sí' : 'No') },
+  { titulo: 'Tiene Tapa (sí:1)', valor: (k) => (k.tieneTapa ? 1 : 0) },
   { titulo: 'Marca', valor: (k) => k.marca },
   { titulo: 'Capacidad', valor: (k) => NOMBRE_CAPACIDAD[k.capacidad] },
   {
@@ -184,7 +184,7 @@ export class CoolersController {
       `${SELECT_COOLER} ${DONDE} order by ${ORDEN} limit ${MAX_ETIQUETAS}`,
       this.filtros(q, usuario),
     );
-    return pdf('etiquetas-coolers.pdf', await armarEtiquetas(coolers));
+    return pdf('all-barcode.pdf', await armarEtiquetas(coolers));
   }
 
   // Planilla con los coolers que cumplen el filtro.
@@ -283,10 +283,7 @@ export class CoolersController {
     @UsuarioActual() usuario: UsuarioSesion,
   ) {
     const cooler = await this.buscar(id, usuario);
-    return pdf(
-      `etiqueta-cooler-${cooler.nombre}.pdf`,
-      await armarEtiquetas([cooler]),
-    );
+    return pdf('barcode.pdf', await armarEtiquetas([cooler]));
   }
 
   // El cooler nace disponible y con un código de barras nuevo. Si trae

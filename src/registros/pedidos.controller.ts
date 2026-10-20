@@ -121,23 +121,33 @@ export class PedidosController {
        order by x.fecha desc, x.id desc limit ${MAX_FILAS_EXCEL}`,
       [...this.filtros(q, usuario), vePrecio],
     );
+    // Las mismas columnas que la planilla de la versión Laravel.
     const columnas: Columna<PedidoEspecial>[] = [
-      { titulo: 'N°', valor: (p) => p.id },
+      { titulo: 'Identificador', valor: (p) => p.id },
       { titulo: 'Fecha', valor: (p) => p.fecha, tipo: 'fecha' },
       { titulo: 'Local', valor: (p) => p.local },
       { titulo: 'Ciudad', valor: (p) => p.ciudad },
       { titulo: 'Destino', valor: (p) => p.destino },
       {
-        titulo: 'Extraordinario',
-        valor: (p) => (p.extraordinario ? 'Sí' : 'No'),
+        titulo: 'Extraordinario (1:sí)',
+        valor: (p) => (p.extraordinario ? 1 : 0),
       },
       { titulo: 'Descripción', valor: (p) => p.descripcion },
-      { titulo: 'Órdenes', valor: (p) => p.cantidad, tipo: 'numero' },
+      { titulo: 'Cantidad OP', valor: (p) => p.cantidad, tipo: 'numero' },
     ];
     if (vePrecio) {
-      columnas.push({ titulo: 'Valor', valor: (p) => p.precio, tipo: 'pesos' });
+      columnas.push({
+        titulo: 'Precio',
+        valor: (p) => p.precio,
+        tipo: 'pesos',
+      });
     }
-    return excel('Pedidos especiales', 'Pedidos especiales', columnas, pedidos);
+    return excel(
+      'Historial Pedidos Especiales',
+      'Especiales',
+      columnas,
+      pedidos,
+    );
   }
 
   @Post()

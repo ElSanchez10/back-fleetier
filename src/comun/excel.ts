@@ -28,7 +28,8 @@ function aFecha(valor: string): Date {
 
 // Arma un .xlsx de una hoja con los títulos en negrita, la primera fila fija
 // y filtro en cada columna, y lo entrega como descarga.
-// `nombre` lleva el día en que se generó: "Rutas (15-10-2026).xlsx".
+// `nombre` lleva el día en que se generó, como en la versión Laravel:
+// "Historial Rutas (Generado 15-10-2026).xlsx".
 export async function excel<T>(
   nombre: string,
   hoja: string,
@@ -77,7 +78,7 @@ export async function excel<T>(
 
   const contenido = Buffer.from(await libro.xlsx.writeBuffer());
   const [anio, mes, dia] = hoyEnChile().split('-');
-  const archivo = `${nombre} (${dia}-${mes}-${anio}).xlsx`;
+  const archivo = `${nombre} (Generado ${dia}-${mes}-${anio}).xlsx`;
   return new StreamableFile(contenido, {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     // filename* lleva el nombre con tildes; filename, una versión sin ellas.
