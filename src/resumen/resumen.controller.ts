@@ -7,12 +7,10 @@ import {
   UsuarioActual,
   type UsuarioSesion,
 } from '../auth/sesion.js';
-import { BdService } from '../bd/bd.service.js';
-import { localVisible } from '../comun/alcance.js';
 import { type Columna, excel, EXPORTAN } from '../comun/excel.js';
 import { ID_MAXIMO } from '../comun/id.pipe.js';
-import { EN_RUTA, enSuCiudad } from '../conductores/conductores.service.js';
-import { DIA_RUTA } from '../rutas/rutas.service.js';
+import type { ActividadLocal } from './resumen.repositorio.js';
+import { ResumenService } from './resumen.service.js';
 
 export class FiltroActividadLocalesDto {
   // 'AAAA-MM'
@@ -34,14 +32,6 @@ export class FiltroActividadLocalesDto {
   localId?: number;
 }
 
-interface ActividadLocal {
-  localId: number;
-  local: string;
-  ciudad: string;
-  rutas: number;
-  ordenes: number;
-}
-
 // Las mismas columnas que la planilla de la versión Laravel.
 const COLUMNAS_EXCEL: Columna<ActividadLocal>[] = [
   { titulo: 'Ciudad', valor: (a) => a.ciudad },
@@ -53,44 +43,16 @@ const COLUMNAS_EXCEL: Columna<ActividadLocal>[] = [
   },
 ];
 
-// Lo que muestra la pantalla de inicio. Una cuenta con local ve solo lo de su
-// local (y los conductores de su ciudad).
+// La pantalla de inicio (las reglas, en ResumenService).
 @Controller('resumen')
 @Roles(...TODOS_LOS_ROLES)
 export class ResumenController {
-  constructor(private readonly bd: BdService) {}
+  constructor(private readonly resumenes: ResumenService) {}
 
   // Cómo está la operación ahora: rutas abiertas, coolers y conductores.
   @Get()
-  async resumen(@UsuarioActual() usuario: UsuarioSesion) {
-    const local = localVisible(usuario);
-    const [[indicadores], coolers] = await Promise.all([
-      this.bd.consultar(
-        `select
-           (select count(*) from ruta
-            where estado = 'en_ejecucion' and ($1::int is null or local_id = $1))::int
-             as "rutasActivas",
-           (select count(*) from ruta
-            where estado = 'pendiente' and ($1::int is null or local_id = $1))::int
-             as "rutasPendientes",
-           (select count(*) from cooler
-            where estado = 'disponible' and ($1::int is null or local_id = $1))::int
-             as "coolersDisponibles",
-           (select count(*) from conductor d
-            where ${enSuCiudad('$1')} and ${EN_RUTA})::int as "conductoresEnRuta"`,
-        [local],
-      ),
-      // Todos los estados, también los que no tienen coolers (cantidad 0).
-      this.bd.consultar(
-        `select e.estado, count(k.id)::int as cantidad
-         from unnest(enum_range(null::estado_cooler)) with ordinality as e(estado, orden)
-         left join cooler k on k.estado = e.estado and ($1::int is null or k.local_id = $1)
-         group by e.estado, e.orden
-         order by e.orden`,
-        [local],
-      ),
-    ]);
-    return { ...indicadores, coolersPorEstado: coolers };
+  resumen(@UsuarioActual() usuario: UsuarioSesion) {
+    return this.resumenes.resumen(usuario);
   }
 
   // Rutas y órdenes de pedido de cada local en un mes. No cuenta las rutas
@@ -100,21 +62,7 @@ export class ResumenController {
     @Query() q: FiltroActividadLocalesDto,
     @UsuarioActual() usuario: UsuarioSesion,
   ): Promise<ActividadLocal[]> {
-    return this.bd.consultar<ActividadLocal>(
-      `select l.id as "localId", l.nombre as local, c.nombre as ciudad,
-              count(r.id)::int as rutas,
-              coalesce(sum(r.ordenes), 0)::int as ordenes
-       from local l
-       join ciudad c on c.id = l.ciudad_id
-       left join ruta r on r.local_id = l.id
-         and r.estado <> 'en_espera'
-         and date_trunc('month', ${DIA_RUTA}) = to_date($1, 'YYYY-MM')
-       where ($2::int is null or l.ciudad_id = $2)
-         and ($3::int is null or l.id = $3)
-       group by l.id, l.nombre, c.nombre
-       order by lower(c.nombre), lower(l.nombre)`,
-      [q.mes, q.ciudadId ?? null, localVisible(usuario, q.localId)],
-    );
+    return this.resumenes.actividadLocales(q, usuario);
   }
 
   @Get('locales/excel')
@@ -128,7 +76,7 @@ export class ResumenController {
       'Historial Actividad por Local',
       `Act. Locales periodo ${mes}-${anio}`,
       COLUMNAS_EXCEL,
-      await this.locales(q, usuario),
+      await this.resumenes.actividadLocales(q, usuario),
     );
   }
 }

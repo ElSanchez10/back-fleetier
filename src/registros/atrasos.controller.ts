@@ -15,8 +15,6 @@ import {
   UsuarioActual,
   type UsuarioSesion,
 } from '../auth/sesion.js';
-import { BdService } from '../bd/bd.service.js';
-import { exigirLocal, localVisible } from '../comun/alcance.js';
 import { IdPipe } from '../comun/id.pipe.js';
 import {
   type Columna,
@@ -25,44 +23,12 @@ import {
   MAX_FILAS_EXCEL,
 } from '../comun/excel.js';
 import { Pagina } from '../comun/paginacion.js';
-import { ordenarPor } from '../comun/sql.js';
-import {
-  AtrasoDto,
-  FiltroAtrasosDto,
-  type TipoAtraso,
-} from './registro.dto.js';
-import { DONDE_COMUN, filtrosComunes, noExiste } from './registros.js';
+import type { Atraso } from './atrasos.repositorio.js';
+import { AtrasosService } from './atrasos.service.js';
+import { AtrasoDto, FiltroAtrasosDto } from './registro.dto.js';
 
-export interface Atraso {
-  id: number;
-  fecha: string;
-  localId: number;
-  local: string;
-  ciudad: string;
-  tipo: TipoAtraso;
-  cantidad: number;
-}
-
-const SELECT_ATRASO = `
-  select x.id, x.fecha, x.local_id as "localId", l.nombre as local, c.nombre as ciudad,
-         x.tipo, x.cantidad
-  from atraso x
-  join local l on l.id = x.local_id
-  join ciudad c on c.id = l.ciudad_id`;
-
-// Tras los comunes: $4 tipo.
-const DONDE = `
-  where ${DONDE_COMUN}
-    and ($4::tipo_atraso is null or x.tipo = $4)`;
-
-// Columnas por las que se ordena el listado.
-const ORDEN = {
-  id: 'x.id',
-  fecha: 'x.fecha',
-  local: 'lower(l.nombre)',
-  tipo: 'x.tipo',
-  cantidad: 'x.cantidad',
-};
+const NOMBRE_PLANILLA = 'Historial Atrasos';
+const NOMBRE_HOJA = 'Atrasos';
 
 // Las mismas columnas que la planilla de la versión Laravel.
 const COLUMNAS_EXCEL: Columna<Atraso>[] = [
@@ -82,28 +48,15 @@ const COLUMNAS_EXCEL: Columna<Atraso>[] = [
 @Controller('atrasos')
 @Roles('admin', 'encargado', 'coordinador')
 export class AtrasosController {
-  constructor(private readonly bd: BdService) {}
+  constructor(private readonly atrasos: AtrasosService) {}
 
   @Get()
   @Roles(...TODOS_LOS_ROLES)
-  async listar(
+  listar(
     @Query() q: FiltroAtrasosDto,
     @UsuarioActual() usuario: UsuarioSesion,
   ): Promise<Pagina<Atraso>> {
-    const filtros = this.filtros(q, usuario);
-    const [items, [{ total }]] = await Promise.all([
-      this.bd.consultar<Atraso>(
-        `${SELECT_ATRASO} ${DONDE}
-         ${ordenarPor(q, ORDEN, 'x.fecha desc, x.id desc', 'x.id')}
-         limit $5 offset $6`,
-        [...filtros, q.limite, q.desde],
-      ),
-      this.bd.consultar<{ total: number }>(
-        `select count(*)::int as total from atraso x ${DONDE}`,
-        filtros,
-      ),
-    ]);
-    return { items, total };
+    return this.atrasos.listar(q, usuario);
   }
 
   @Get('excel')
@@ -112,68 +65,28 @@ export class AtrasosController {
     @Query() q: FiltroAtrasosDto,
     @UsuarioActual() usuario: UsuarioSesion,
   ) {
-    const atrasos = await this.bd.consultar<Atraso>(
-      `${SELECT_ATRASO} ${DONDE}
-       order by x.fecha desc, x.id desc limit ${MAX_FILAS_EXCEL}`,
-      this.filtros(q, usuario),
-    );
-    return excel('Historial Atrasos', 'Atrasos', COLUMNAS_EXCEL, atrasos);
+    const filas = await this.atrasos.todos(q, usuario, MAX_FILAS_EXCEL);
+    return excel(NOMBRE_PLANILLA, NOMBRE_HOJA, COLUMNAS_EXCEL, filas);
   }
 
   @Post()
-  async crear(@Body() dto: AtrasoDto, @UsuarioActual() usuario: UsuarioSesion) {
-    exigirLocal(usuario, dto.localId);
-    const [{ id }] = await this.bd.consultar<{ id: number }>(
-      `insert into atraso (local_id, tipo, fecha, cantidad)
-       values ($1, $2, $3, $4) returning id`,
-      [dto.localId, dto.tipo, dto.fecha, dto.cantidad],
-    );
-    return this.buscar(id, usuario);
+  crear(@Body() dto: AtrasoDto, @UsuarioActual() usuario: UsuarioSesion) {
+    return this.atrasos.crear(dto, usuario);
   }
 
   @Put(':id')
-  async editar(
+  editar(
     @Param('id', IdPipe) id: number,
     @Body() dto: AtrasoDto,
     @UsuarioActual() usuario: UsuarioSesion,
   ) {
-    await this.buscar(id, usuario);
-    exigirLocal(usuario, dto.localId);
-    await this.bd.consultar(
-      `update atraso set local_id = $2, tipo = $3, fecha = $4, cantidad = $5
-       where id = $1`,
-      [id, dto.localId, dto.tipo, dto.fecha, dto.cantidad],
-    );
-    return this.buscar(id, usuario);
+    return this.atrasos.editar(id, dto, usuario);
   }
 
   @Delete(':id')
   @Roles('admin')
   @HttpCode(204)
-  async eliminar(@Param('id', IdPipe) id: number) {
-    const borrados = await this.bd.consultar(
-      'delete from atraso where id = $1 returning id',
-      [id],
-    );
-    if (borrados.length === 0) {
-      noExiste('atraso_no_existe');
-    }
-  }
-
-  // $1..$4 de DONDE.
-  private filtros(q: FiltroAtrasosDto, usuario: UsuarioSesion) {
-    return [
-      ...filtrosComunes(q, localVisible(usuario, q.localId)),
-      q.tipo ?? null,
-    ];
-  }
-
-  // Un atraso de otro local se trata igual que uno que no existe.
-  private async buscar(id: number, usuario: UsuarioSesion) {
-    const [atraso] = await this.bd.consultar<Atraso>(
-      `${SELECT_ATRASO} where x.id = $1 and ($2::int is null or x.local_id = $2)`,
-      [id, usuario.localId],
-    );
-    return atraso ?? noExiste('atraso_no_existe');
+  eliminar(@Param('id', IdPipe) id: number) {
+    return this.atrasos.eliminar(id);
   }
 }

@@ -12,6 +12,7 @@ import { Roles, TODOS_LOS_ROLES } from '../auth/sesion.js';
 import { BdService } from '../bd/bd.service.js';
 import { IdPipe } from '../comun/id.pipe.js';
 import { TipoConductorDto } from './catalogo.dto.js';
+import { CatalogoRepositorio } from './catalogo.repositorio.js';
 import { Mantenedor } from './mantenedor.js';
 
 // Clasificación de los conductores.
@@ -22,12 +23,14 @@ export class TiposConductorController {
   private readonly mantenedor: Mantenedor<TipoConductorDto>;
 
   constructor(bd: BdService) {
-    this.mantenedor = new Mantenedor(bd, {
-      tabla: 'tipo_conductor',
-      select: `select c.id, c.nombre from tipo_conductor c`,
-      orden: 'lower(c.nombre)',
-      columnas: { nombre: 'nombre' },
-    });
+    this.mantenedor = new Mantenedor(
+      new CatalogoRepositorio(bd, {
+        tabla: 'tipo_conductor',
+        select: `select c.id, c.nombre from tipo_conductor c`,
+        orden: 'lower(c.nombre)',
+        columnas: { nombre: 'nombre' },
+      }),
+    );
   }
 
   @Get()

@@ -1,9 +1,14 @@
 import { Logger, Module, type OnModuleInit } from '@nestjs/common';
 import { cifradoConfigurado } from './cifrado.js';
 import { ConductoresController } from './conductores.controller.js';
+import { ConductoresRepositorio } from './conductores.repositorio.js';
 import { ConductoresService } from './conductores.service.js';
 import { CuentasController } from './cuentas.controller.js';
+import { CuentasRepositorio } from './cuentas.repositorio.js';
+import { CuentasService } from './cuentas.service.js';
 import { EventosController } from './eventos.controller.js';
+import { EventosRepositorio } from './eventos.repositorio.js';
+import { EventosService } from './eventos.service.js';
 import { RutasConductorController } from './rutas-conductor.controller.js';
 
 @Module({
@@ -13,7 +18,14 @@ import { RutasConductorController } from './rutas-conductor.controller.js';
     CuentasController,
     RutasConductorController,
   ],
-  providers: [ConductoresService],
+  providers: [
+    ConductoresService,
+    ConductoresRepositorio,
+    CuentasService,
+    CuentasRepositorio,
+    EventosService,
+    EventosRepositorio,
+  ],
   exports: [ConductoresService],
 })
 export class ConductoresModule implements OnModuleInit {

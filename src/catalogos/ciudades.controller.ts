@@ -12,6 +12,7 @@ import { Roles, TODOS_LOS_ROLES } from '../auth/sesion.js';
 import { BdService } from '../bd/bd.service.js';
 import { IdPipe } from '../comun/id.pipe.js';
 import { CiudadDto } from './catalogo.dto.js';
+import { CatalogoRepositorio } from './catalogo.repositorio.js';
 import { Mantenedor } from './mantenedor.js';
 
 // Ciudades donde hay locales y conductores.
@@ -22,12 +23,14 @@ export class CiudadesController {
   private readonly mantenedor: Mantenedor<CiudadDto>;
 
   constructor(bd: BdService) {
-    this.mantenedor = new Mantenedor(bd, {
-      tabla: 'ciudad',
-      select: `select c.id, c.nombre from ciudad c`,
-      orden: 'lower(c.nombre)',
-      columnas: { nombre: 'nombre' },
-    });
+    this.mantenedor = new Mantenedor(
+      new CatalogoRepositorio(bd, {
+        tabla: 'ciudad',
+        select: `select c.id, c.nombre from ciudad c`,
+        orden: 'lower(c.nombre)',
+        columnas: { nombre: 'nombre' },
+      }),
+    );
   }
 
   @Get()

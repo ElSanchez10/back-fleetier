@@ -17,40 +17,41 @@ import {
 import { BdService } from '../bd/bd.service.js';
 import { IdPipe } from '../comun/id.pipe.js';
 import { LocalDto } from './catalogo.dto.js';
-import { Mantenedor } from './mantenedor.js';
+import { CatalogoRepositorio } from './catalogo.repositorio.js';
+import { MantenedorLocales } from './mantenedor.js';
 
 // Locales desde donde salen las rutas, cada uno en su ciudad.
 // Todos los roles pueden leerlos; solo un admin los modifica.
 @Controller('locales')
 export class LocalesController {
-  private readonly mantenedor: Mantenedor<LocalDto>;
+  private readonly mantenedor: MantenedorLocales;
 
   constructor(bd: BdService) {
-    this.mantenedor = new Mantenedor(bd, {
-      tabla: 'local',
-      select: `select c.id,
+    this.mantenedor = new MantenedorLocales(
+      new CatalogoRepositorio(bd, {
+        tabla: 'local',
+        select: `select c.id,
                       c.nombre,
                       c.direccion,
                       c.ciudad_id as "ciudadId",
                       ci.nombre as ciudad
                from local c
                join ciudad ci on ci.id = c.ciudad_id`,
-      orden: 'lower(ci.nombre), lower(c.nombre)',
-      columnas: {
-        nombre: 'nombre',
-        direccion: 'direccion',
-        ciudadId: 'ciudad_id',
-      },
-    });
+        orden: 'lower(ci.nombre), lower(c.nombre)',
+        columnas: {
+          nombre: 'nombre',
+          direccion: 'direccion',
+          ciudadId: 'ciudad_id',
+        },
+      }),
+    );
   }
 
   // Una cuenta con local solo recibe el suyo: es el único que puede elegir.
   @Get()
   @Roles(...TODOS_LOS_ROLES)
   listar(@UsuarioActual() usuario: UsuarioSesion) {
-    return usuario.localId
-      ? this.mantenedor.listar('where c.id = $1', [usuario.localId])
-      : this.mantenedor.listar();
+    return this.mantenedor.listarPara(usuario);
   }
 
   @Post()

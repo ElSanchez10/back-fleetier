@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { Consultar } from '../bd/bd.service.js';
 import type { EstadoCooler } from '../coolers/cooler.dto.js';
 import type { EstadoRuta, RutaDto } from './ruta.dto.js';
-import { desdeHoraLocal } from './rutas.service.js';
+import { desdeHoraLocal } from './rutas.sql.js';
 
 // Acceso a los datos de las rutas y sus coolers, para OperacionesService. Aquí
 // no se decide nada: solo se lee y se escribe. Todo corre dentro de la

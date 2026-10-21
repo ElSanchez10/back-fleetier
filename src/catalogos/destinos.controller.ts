@@ -12,6 +12,7 @@ import { Roles, TODOS_LOS_ROLES } from '../auth/sesion.js';
 import { BdService } from '../bd/bd.service.js';
 import { IdPipe } from '../comun/id.pipe.js';
 import { DestinoDto } from './catalogo.dto.js';
+import { CatalogoRepositorio } from './catalogo.repositorio.js';
 import { Mantenedor } from './mantenedor.js';
 
 // Destinos de los pedidos especiales, con el precio que se propone para cada uno.
@@ -22,12 +23,14 @@ export class DestinosController {
   private readonly mantenedor: Mantenedor<DestinoDto>;
 
   constructor(bd: BdService) {
-    this.mantenedor = new Mantenedor(bd, {
-      tabla: 'destino_pedido_especial',
-      select: `select c.id, c.nombre, c.precio_base as "precioBase" from destino_pedido_especial c`,
-      orden: 'lower(c.nombre)',
-      columnas: { nombre: 'nombre', precioBase: 'precio_base' },
-    });
+    this.mantenedor = new Mantenedor(
+      new CatalogoRepositorio(bd, {
+        tabla: 'destino_pedido_especial',
+        select: `select c.id, c.nombre, c.precio_base as "precioBase" from destino_pedido_especial c`,
+        orden: 'lower(c.nombre)',
+        columnas: { nombre: 'nombre', precioBase: 'precio_base' },
+      }),
+    );
   }
 
   @Get()

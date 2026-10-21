@@ -12,6 +12,7 @@ import { Roles, TODOS_LOS_ROLES } from '../auth/sesion.js';
 import { BdService } from '../bd/bd.service.js';
 import { IdPipe } from '../comun/id.pipe.js';
 import { TipoCoolerDto } from './catalogo.dto.js';
+import { CatalogoRepositorio } from './catalogo.repositorio.js';
 import { Mantenedor } from './mantenedor.js';
 
 // Tipos de cooler: marca, capacidad y el color con que se muestran.
@@ -23,12 +24,14 @@ export class TiposCoolerController {
   private readonly mantenedor: Mantenedor<TipoCoolerDto>;
 
   constructor(bd: BdService) {
-    this.mantenedor = new Mantenedor(bd, {
-      tabla: 'tipo_cooler',
-      select: `select c.id, c.marca, c.capacidad, c.color from tipo_cooler c`,
-      orden: 'lower(c.marca), c.capacidad',
-      columnas: { marca: 'marca', capacidad: 'capacidad', color: 'color' },
-    });
+    this.mantenedor = new Mantenedor(
+      new CatalogoRepositorio(bd, {
+        tabla: 'tipo_cooler',
+        select: `select c.id, c.marca, c.capacidad, c.color from tipo_cooler c`,
+        orden: 'lower(c.marca), c.capacidad',
+        columnas: { marca: 'marca', capacidad: 'capacidad', color: 'color' },
+      }),
+    );
   }
 
   @Get()

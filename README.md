@@ -42,7 +42,19 @@ npm test
 | `src/registros/` | lo demás que se anota en Actividad: pedidos especiales, atrasos y casos excepcionales |
 | `src/resumen/` | indicadores de la pantalla de inicio y actividad de cada local en un mes |
 
-Cada módulo de la app (rutas…) agrega su carpeta en `src/`.
+Cada módulo de la app (rutas…) agrega su carpeta en `src/`, separada en tres
+capas:
+
+- `*.controller.ts`: recibe la petición, revisa el rol (`@Roles`) y arma la
+  respuesta (JSON, planilla o PDF). No decide ni tiene SQL.
+- `*.service.ts`: las reglas del negocio (qué local ve cada cuenta, quién
+  puede corregir qué, cuándo una ruta queda finalizada…).
+- `*.repositorio.ts`: el SQL. Solo lee y escribe; no decide nada.
+
+Las pruebas (`*.spec.ts`, `npm test`) prueban los servicios con repositorios
+emulados (mocks o datos en memoria): no se conectan a ninguna base de datos.
+El apoyo común está en `src/comun/pruebas.ts`. El SQL de los repositorios se
+comprueba contra el back corriendo en local (`local.sh`).
 
 ## Alcance por local
 

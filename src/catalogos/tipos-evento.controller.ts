@@ -12,6 +12,7 @@ import { Roles, TODOS_LOS_ROLES } from '../auth/sesion.js';
 import { BdService } from '../bd/bd.service.js';
 import { IdPipe } from '../comun/id.pipe.js';
 import { TipoEventoDto } from './catalogo.dto.js';
+import { CatalogoRepositorio } from './catalogo.repositorio.js';
 import { Mantenedor } from './mantenedor.js';
 
 // Tipos de evento del calendario de un conductor.
@@ -22,12 +23,14 @@ export class TiposEventoController {
   private readonly mantenedor: Mantenedor<TipoEventoDto>;
 
   constructor(bd: BdService) {
-    this.mantenedor = new Mantenedor(bd, {
-      tabla: 'tipo_evento',
-      select: `select c.id, c.nombre, c.color from tipo_evento c`,
-      orden: 'lower(c.nombre)',
-      columnas: { nombre: 'nombre', color: 'color' },
-    });
+    this.mantenedor = new Mantenedor(
+      new CatalogoRepositorio(bd, {
+        tabla: 'tipo_evento',
+        select: `select c.id, c.nombre, c.color from tipo_evento c`,
+        orden: 'lower(c.nombre)',
+        columnas: { nombre: 'nombre', color: 'color' },
+      }),
+    );
   }
 
   @Get()
