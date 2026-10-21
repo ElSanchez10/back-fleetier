@@ -208,11 +208,9 @@ export class RutasController {
     if (cerrada && usuario.rol !== 'admin') {
       throw new ForbiddenException({ statusCode: 403, codigo: 'ruta_cerrada' });
     }
-    // Al corregir una ruta cerrada se puede dejar el conductor que ya tenía
-    // aunque hoy sea de otra ciudad o esté en otra ruta.
-    if (dto.conductorId !== ruta.conductorId || !cerrada) {
-      await this.validar(dto, usuario);
-    }
+    // El conductor que ya tenía la ruta se deja aunque la cuenta no lo vea
+    // (un admin pudo prestarlo de otra ciudad); solo se revisa uno nuevo.
+    await this.validar(dto, usuario, ruta.conductorId);
     await this.bd.consultar(
       `select ruta_editar($1, $2, $3, ${desdeHoraLocal('$4')}, $5, $6::int[])`,
       [id, dto.localId, dto.conductorId, dto.fecha, dto.ordenes, dto.coolers],
@@ -260,11 +258,17 @@ export class RutasController {
     ];
   }
 
-  // La cuenta debe poder operar el local, y ver al conductor (su ciudad).
-  // Que los coolers sean del local lo valida la base.
-  private async validar(dto: RutaDto, usuario: UsuarioSesion) {
+  // La cuenta debe poder operar el local, y ver al conductor: una cuenta con
+  // local, los de su ciudad; un admin, de cualquier ciudad, como en Laravel.
+  // Que los coolers sean del local y que el conductor no esté en otra ruta
+  // abierta lo valida la base.
+  private async validar(
+    dto: RutaDto,
+    usuario: UsuarioSesion,
+    conductorAnterior: number | null = null,
+  ) {
     exigirLocal(usuario, dto.localId);
-    if (dto.conductorId !== null) {
+    if (dto.conductorId !== null && dto.conductorId !== conductorAnterior) {
       await this.conductores.buscar(dto.conductorId, usuario);
     }
   }

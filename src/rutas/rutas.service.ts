@@ -33,6 +33,8 @@ export interface Ruta {
   conductorId: number | null;
   conductor: string | null;
   conductorTelefono: string | null;
+  // Para el ícono del conductor: 1 es auto; los demás, camión.
+  conductorTipoId: number | null;
   coolers: number;
   devueltos: number;
   problemas: number;
@@ -50,6 +52,7 @@ export const SELECT_RUTA = `
          r.conductor_id as "conductorId",
          d.nombre as conductor,
          d.telefono as "conductorTelefono",
+         d.tipo_conductor_id as "conductorTipoId",
          (select count(*)::int from ruta_cooler rc where rc.ruta_id = r.id) as coolers,
          (select count(*)::int from ruta_cooler rc where rc.ruta_id = r.id and rc.devuelto) as devueltos,
          (select count(*)::int from problema_ruta p where p.ruta_id = r.id) as problemas
