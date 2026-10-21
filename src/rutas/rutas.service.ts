@@ -65,11 +65,12 @@ export const SELECT_RUTA = `
 export class RutasService {
   constructor(private readonly bd: BdService) {}
 
-  // Una ruta de otro local se trata igual que una que no existe.
-  async buscar(id: number, usuario: UsuarioSesion): Promise<Ruta> {
+  // Una ruta de otro local se trata igual que una que no existe. Con
+  // `usuario` null se busca en todos los locales.
+  async buscar(id: number, usuario: UsuarioSesion | null): Promise<Ruta> {
     const [ruta] = await this.bd.consultar<Ruta>(
       `${SELECT_RUTA} where r.id = $1 and ($2::int is null or r.local_id = $2)`,
-      [id, localVisible(usuario)],
+      [id, usuario && localVisible(usuario)],
     );
     if (!ruta) {
       throw new NotFoundException({

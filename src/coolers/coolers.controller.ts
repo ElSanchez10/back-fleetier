@@ -30,6 +30,7 @@ import {
 } from '../comun/excel.js';
 import { Pagina } from '../comun/paginacion.js';
 import { contiene, ordenarPor, patron } from '../comun/sql.js';
+import { OperacionesService } from '../rutas/operaciones.service.js';
 import { DIA_RUTA } from '../rutas/rutas.service.js';
 import {
   EditarCoolerDto,
@@ -142,7 +143,10 @@ function pdf(nombre: string, contenido: Buffer) {
 @Controller('coolers')
 @Roles(...TODOS_LOS_ROLES)
 export class CoolersController {
-  constructor(private readonly bd: BdService) {}
+  constructor(
+    private readonly bd: BdService,
+    private readonly operaciones: OperacionesService,
+  ) {}
 
   // Además del tramo pedido, devuelve el resumen de todo lo que la cuenta
   // puede ver (sin los filtros): total, disponibles y en ruta.
@@ -201,15 +205,13 @@ export class CoolersController {
     return excel('Coolers', 'Coolers', COLUMNAS_EXCEL, coolers);
   }
 
-  // El cooler que leyó la pistola. Uno de otro local se trata como inexistente.
+  // El cooler que leyó la pistola al armar una ruta. Puede ser de otro local:
+  // si físicamente está aquí, se puede usar (el front avisa de qué local es).
   @Get('codigo/:codigo')
-  async porCodigo(
-    @Param('codigo') codigo: string,
-    @UsuarioActual() usuario: UsuarioSesion,
-  ) {
+  async porCodigo(@Param('codigo') codigo: string) {
     const [cooler] = await this.bd.consultar<Cooler>(
-      `${SELECT_COOLER} where k.codigo = $1 and ($2::int is null or k.local_id = $2)`,
-      [codigo.trim(), localVisible(usuario)],
+      `${SELECT_COOLER} where k.codigo = $1`,
+      [codigo.trim()],
     );
     return cooler ?? noExiste();
   }
@@ -334,8 +336,10 @@ export class CoolersController {
     }
   }
 
-  // Mientras el cooler está en una ruta (en espera, en ruta o pendiente) su
-  // estado y su local los manejan las rutas: no se cambian a mano.
+  // Los estados de ruta (en espera, en ruta, pendiente) los ponen las rutas:
+  // a mano no se pone ninguno. Cualquier otro sí, aunque el cooler esté en una
+  // ruta: queda fuera de ella como si hubiera vuelto (OperacionesService), y si era
+  // el último que le faltaba, la ruta queda finalizada.
   @Put(':id')
   @Roles('admin')
   async editar(
@@ -344,35 +348,33 @@ export class CoolersController {
     @UsuarioActual() usuario: UsuarioSesion,
   ) {
     const actual = await this.buscar(id, usuario);
-    const enRuta = (estado: EstadoCooler) => ESTADOS_DE_RUTA.includes(estado);
-    if (
-      (enRuta(actual.estado) || enRuta(dto.estado)) &&
-      (actual.estado !== dto.estado || actual.localId !== dto.localId)
-    ) {
+    const cambiaEstado = actual.estado !== dto.estado;
+    if (cambiaEstado && ESTADOS_DE_RUTA.includes(dto.estado)) {
       throw new ConflictException({
         statusCode: 409,
         codigo: 'cooler_estado_de_ruta',
       });
     }
-    const cambiados = await this.bd.consultar(
-      `update cooler
-       set nombre = $2, codigo = $3, fecha_adquisicion = $4, tiene_tapa = $5,
-           tipo_cooler_id = $6, local_id = $7, estado = $8
-       where id = $1 returning id`,
-      [
-        id,
-        dto.nombre,
-        dto.codigo,
-        dto.fechaAdquisicion,
-        dto.tieneTapa,
-        dto.tipoCoolerId,
-        dto.localId,
-        dto.estado,
-      ],
-    );
-    if (cambiados.length === 0) {
-      noExiste();
-    }
+    await this.bd.transaccion(async (sql) => {
+      await sql(
+        `update cooler
+         set nombre = $2, codigo = $3, fecha_adquisicion = $4, tiene_tapa = $5,
+             tipo_cooler_id = $6, local_id = $7
+         where id = $1`,
+        [
+          id,
+          dto.nombre,
+          dto.codigo,
+          dto.fechaAdquisicion,
+          dto.tieneTapa,
+          dto.tipoCoolerId,
+          dto.localId,
+        ],
+      );
+      if (cambiaEstado) {
+        await this.operaciones.liberar(sql, id, dto.estado);
+      }
+    });
     return this.buscar(id, usuario);
   }
 

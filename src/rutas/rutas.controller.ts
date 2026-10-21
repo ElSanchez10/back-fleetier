@@ -28,6 +28,7 @@ import {
 import { contiene, HOY, ordenarPor, patron } from '../comun/sql.js';
 import { hoyEnChile } from '../comun/validaciones.js';
 import { ConductoresService } from '../conductores/conductores.service.js';
+import { OperacionesService } from './operaciones.service.js';
 import {
   FiltroRutasDto,
   NOMBRE_ESTADO_RUTA,
@@ -36,7 +37,6 @@ import {
 } from './ruta.dto.js';
 import {
   DIA_RUTA,
-  desdeHoraLocal,
   horaLocal,
   type Ruta,
   RutasService,
@@ -83,6 +83,7 @@ export class RutasController {
   constructor(
     private readonly bd: BdService,
     private readonly rutas: RutasService,
+    private readonly operaciones: OperacionesService,
     private readonly conductores: ConductoresService,
   ) {}
 
@@ -181,22 +182,13 @@ export class RutasController {
     @UsuarioActual() usuario: UsuarioSesion,
   ) {
     await this.validar(dto, usuario);
-    const [{ id }] = await this.bd.consultar<{ id: number }>(
-      `select ruta_crear($1, $2, ${desdeHoraLocal('$3')}, $4, $5::int[], $6) as id`,
-      [
-        dto.localId,
-        dto.conductorId,
-        dto.fecha,
-        dto.ordenes,
-        dto.coolers,
-        dto.iniciar,
-      ],
-    );
+    const id = await this.operaciones.crear(dto);
     return this.uno(id, usuario);
   }
 
-  // Corrige la ruta. Una ruta ya cerrada (pendiente o finalizada) solo la
-  // corrige un admin, y ya no se le cambian los coolers.
+  // Corrige la ruta. Como en Laravel, encargado y coordinador la corrigen
+  // mientras no ha partido; después, solo un admin. A una ruta cerrada
+  // (pendiente o finalizada) ya no se le cambian los coolers.
   @Put(':id')
   async editar(
     @Param('id', IdPipe) id: number,
@@ -204,17 +196,16 @@ export class RutasController {
     @UsuarioActual() usuario: UsuarioSesion,
   ) {
     const ruta = await this.rutas.buscar(id, usuario);
-    const cerrada = ruta.estado === 'pendiente' || ruta.estado === 'finalizada';
-    if (cerrada && usuario.rol !== 'admin') {
-      throw new ForbiddenException({ statusCode: 403, codigo: 'ruta_cerrada' });
+    if (ruta.estado !== 'en_espera' && usuario.rol !== 'admin') {
+      throw new ForbiddenException({
+        statusCode: 403,
+        codigo: 'ruta_ya_partio',
+      });
     }
     // El conductor que ya tenía la ruta se deja aunque la cuenta no lo vea
     // (un admin pudo prestarlo de otra ciudad); solo se revisa uno nuevo.
     await this.validar(dto, usuario, ruta.conductorId);
-    await this.bd.consultar(
-      `select ruta_editar($1, $2, $3, ${desdeHoraLocal('$4')}, $5, $6::int[])`,
-      [id, dto.localId, dto.conductorId, dto.fecha, dto.ordenes, dto.coolers],
-    );
+    await this.operaciones.editar(id, dto);
     return this.uno(id, usuario);
   }
 
@@ -225,7 +216,7 @@ export class RutasController {
     @UsuarioActual() usuario: UsuarioSesion,
   ) {
     await this.rutas.buscar(id, usuario);
-    await this.bd.consultar('select ruta_iniciar($1)', [id]);
+    await this.operaciones.iniciar(id);
     return this.uno(id, usuario);
   }
 
@@ -238,7 +229,7 @@ export class RutasController {
     @UsuarioActual() usuario: UsuarioSesion,
   ) {
     await this.rutas.buscar(id, usuario);
-    await this.bd.consultar('select ruta_cerrar($1)', [id]);
+    await this.operaciones.cerrar(id);
     return this.uno(id, usuario);
   }
 

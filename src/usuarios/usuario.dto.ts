@@ -5,6 +5,7 @@ import {
   IsInt,
   IsNotEmpty,
   IsOptional,
+  ValidateIf,
   IsString,
   Matches,
   Max,
@@ -34,8 +35,9 @@ export class UsuarioDto {
   @IsIn(TODOS_LOS_ROLES)
   rol: Rol;
 
-  // Solo para encargado y coordinador; en los demás roles se ignora.
-  @IsOptional()
+  // Obligatorio para encargado y coordinador, como en Laravel; en los demás
+  // roles se ignora.
+  @ValidateIf((dto: UsuarioDto) => ROLES_CON_LOCAL.includes(dto.rol))
   @IsInt()
   @Min(1)
   @Max(ID_MAXIMO)

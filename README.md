@@ -67,11 +67,13 @@ local. Un registro de otro local se responde igual que uno que no existe (`404`)
   `bwip-js` y `pdfkit` (`src/coolers/etiquetas.ts`).
 - `GET /api/coolers/:id/barras.svg` es el código de barras como imagen, para la
   ficha.
-- `GET /api/coolers/codigo/:codigo` busca el cooler que leyó la pistola y
-  `GET /api/coolers/:id/rutas`, las rutas que ha hecho (por tramos).
-- Mientras un cooler está en una ruta (en espera, en ruta o pendiente), su
-  estado y su local los manejan las rutas: editarlos a mano responde
-  `409 cooler_estado_de_ruta`.
+- `GET /api/coolers/codigo/:codigo` busca el cooler que leyó la pistola (de
+  cualquier local: el front avisa si es de otro) y `GET /api/coolers/:id/rutas`,
+  las rutas que ha hecho (por tramos).
+- Los estados de ruta (en espera, en ruta, pendiente) no se ponen a mano:
+  responde `409 cooler_estado_de_ruta`. Cualquier otro sí, aunque el cooler
+  esté en una ruta: sale de ella como si hubiera vuelto (`OperacionesService.liberar`) y,
+  si era el último que faltaba, la ruta queda finalizada.
 
 ## Conductores
 
@@ -103,20 +105,34 @@ local. Un registro de otro local se responde igual que uno que no existe (`404`)
 
 - Estados: `en_espera` (pre-cargada), `en_ejecucion`, `pendiente` (cerrada con
   coolers que no volvieron) y `finalizada`. Los cambios de estado de rutas y
-  coolers los hacen funciones de la base (`bd-dsl/Functions/ruta_*.sql` y
-  `cooler_devolver.sql`): el back solo las llama y traduce sus errores.
+  coolers los decide `src/rutas/operaciones.service.ts` y los guarda
+  `rutas.repositorio.ts`: cada operación es una transacción que bloquea
+  (`for update`) las filas que toca. Las pruebas del servicio usan un
+  repositorio en memoria, sin base de datos. La base asegura
+  con índices únicos que un conductor no quede en dos rutas abiertas ni un
+  cooler en dos rutas sin devolver.
+- Lo que manda es que los coolers vuelvan: cuando le vuelven todos, la ruta
+  queda finalizada aunque nadie la haya cerrado. Un cooler que se lee para otra
+  ruta sale de la que lo tenía (si ya partió, cuenta como devuelto). Un cooler
+  de otro local se puede usar y sigue siendo de su local. Uno dañado o no
+  disponible no se sube a una ruta ni se devuelve: lo cambia un `admin`.
 - Todos los roles ven las rutas (una cuenta con local, las de su local). Las
-  operan `admin`, `encargado` y `coordinador`; una ruta ya cerrada solo la
-  corrige un `admin`, y sus coolers ya no cambian.
+  operan `admin`, `encargado` y `coordinador`. Como en Laravel, una ruta que ya
+  partió solo la corrige un `admin` (`403 ruta_ya_partio`), y a una ya cerrada
+  no se le cambian los coolers.
+- El conductor: una cuenta con local elige entre los de su ciudad; un `admin`,
+  de cualquier ciudad. Al corregir una ruta solo se revisa un conductor nuevo,
+  no el que ya tenía.
 - `GET /api/rutas` filtra por días (`fechaDesde`, `fechaHasta`), `estado` y
   `localId`, y busca por conductor o número de ruta. `GET /api/rutas/resumen`
   cuenta las rutas de hoy por estado.
 - `POST /api/rutas` registra la ruta con sus coolers; con `iniciar: true` parte
   de inmediato. `PUT /api/rutas/:id` deja los coolers como dice la lista
   enviada. `POST .../iniciar` y `POST .../cerrar` cambian el estado.
-- `POST /api/devoluciones` (`{ codigo }`) registra un cooler que volvió, en la
-  ruta que lo tenga: sirve al cerrar una ruta y para un cooler que vuelve días
-  después.
+- `POST /api/devoluciones` (`{ codigo }`) registra un cooler que volvió: queda
+  disponible y devuelto en la ruta que lo tenga (`ruta`, o `null` si no estaba
+  en ninguna). Sirve al cerrar una ruta, para un cooler que vuelve días
+  después y para uno de otro local (`otroLocal`).
 - Problemas de una ruta (`/api/rutas/:id/problemas`): los anotan y corrigen
   quienes operan rutas; los elimina solo `admin`.
 - Las fechas con hora viajan como `AAAA-MM-DDTHH:MM` en hora de Chile; en la
@@ -155,8 +171,9 @@ Una cuenta con local recibe en `GET /api/locales` solo el suyo.
   solo para `admin`; se abre a otros roles con `@Roles(...)` y al público con
   `@Publico()`.
 - Los roles son `admin`, `asistente`, `encargado` y `coordinador`.
-- Una cuenta puede pertenecer a un local (`localId`): en ese caso solo ve y
-  modifica lo de ese local. Sin local, ve todos.
+- `encargado` y `coordinador` siempre tienen un local (`localId`), como en
+  Laravel: solo ven y modifican lo de ese local. `admin` y `asistente` no
+  tienen local y ven todos.
 - Toda cuenta nace con la contraseña de `CLAVE_INICIAL` y debe cambiarla al
   entrar; mientras no lo haga, solo puede usar `/api/sesion`.
 - El primer admin lo crea el back al partir, con el correo de `ADMIN_CORREO`.
@@ -215,9 +232,11 @@ espera).
 
 ## Errores
 
-Cuando una regla de la base falla, la API responde `409` con un `codigo` que el
-front traduce a un mensaje: el texto del `raise` o el nombre de la restricción
-(`ciudad_nombre_uk`).
+Las reglas del negocio las valida el back: si una falla, responde con un
+`codigo` (`ruta_cerrada`, `cooler_no_disponible`…) que el front traduce a un
+mensaje. Si lo que falla es una restricción de la base (llave, check o índice
+único), la API responde `409` (o `400` para un check) con el nombre de la
+restricción (`ciudad_nombre_uk`).
 
 ## Despliegue
 
