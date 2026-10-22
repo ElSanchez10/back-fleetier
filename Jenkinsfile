@@ -11,6 +11,18 @@ pipeline {
     APP_HOST = 'dsl.vpn.reuno.cl'
   }
   stages {
+    // Si el lint o las pruebas (con su cobertura mínima) fallan, no se
+    // despliega. Corren dentro de Docker: Jenkins no necesita Node.
+    stage('Lint') {
+      steps {
+        sh 'docker build --target lint .'
+      }
+    }
+    stage('Pruebas') {
+      steps {
+        sh 'docker build --target prueba .'
+      }
+    }
     stage('Desplegar') {
       steps {
         // Las credenciales de la base son las mismas que usa bd-dsl

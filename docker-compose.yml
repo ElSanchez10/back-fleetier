@@ -15,6 +15,8 @@ services:
       CLAVE_INICIAL: ${CLAVE_INICIAL:?definir CLAVE_INICIAL en .env}
       ADMIN_CORREO: ${ADMIN_CORREO:-}
       CLAVE_CUENTAS: ${CLAVE_CUENTAS:-}
+      # Documentación de la API en /api/docs. Apagada salvo que el .env diga "true".
+      SWAGGER_HABILITADO: ${SWAGGER_HABILITADO:-false}
     networks:
       - proxy      # para que Traefik lo publique
       - interna    # para hablar con la base

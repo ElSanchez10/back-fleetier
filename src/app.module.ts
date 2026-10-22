@@ -1,18 +1,27 @@
-import { Module } from '@nestjs/common';
-import { AuthModule } from './auth/auth.module.js';
-import { BdModule } from './bd/bd.module.js';
-import { CatalogosModule } from './catalogos/catalogos.module.js';
-import { ConductoresModule } from './conductores/conductores.module.js';
-import { CoolersModule } from './coolers/coolers.module.js';
-import { RegistrosModule } from './registros/registros.module.js';
-import { ResumenModule } from './resumen/resumen.module.js';
-import { RutasModule } from './rutas/rutas.module.js';
-import { SaludController } from './salud/salud.controller.js';
-import { UsuariosModule } from './usuarios/usuarios.module.js';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { validarEntorno } from '@/common/config/env.validation';
+import { DatabaseModule } from '@/common/database/database.module';
+import { RequestLoggingMiddleware } from '@/common/middleware/request-logging.middleware';
+import { AuthModule } from '@/modules/auth/auth.module';
+import { CatalogosModule } from '@/modules/catalogos/catalogos.module';
+import { ConductoresModule } from '@/modules/conductores/conductores.module';
+import { CoolersModule } from '@/modules/coolers/coolers.module';
+import { RegistrosModule } from '@/modules/registros/registros.module';
+import { ResumenModule } from '@/modules/resumen/resumen.module';
+import { RutasModule } from '@/modules/rutas/rutas.module';
+import { SaludModule } from '@/modules/salud/salud.module';
+import { UsuariosModule } from '@/modules/usuarios/usuarios.module';
 
 @Module({
   imports: [
-    BdModule,
+    // Una sola vez, aquí: valida las variables al arrancar.
+    ConfigModule.forRoot({
+      isGlobal: true,
+      cache: true,
+      validate: validarEntorno,
+    }),
+    DatabaseModule,
     AuthModule,
     CatalogosModule,
     ConductoresModule,
@@ -20,8 +29,12 @@ import { UsuariosModule } from './usuarios/usuarios.module.js';
     RegistrosModule,
     ResumenModule,
     RutasModule,
+    SaludModule,
     UsuariosModule,
   ],
-  controllers: [SaludController],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestLoggingMiddleware).forRoutes('{*ruta}');
+  }
+}
