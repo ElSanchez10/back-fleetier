@@ -19,14 +19,18 @@ const ANCHO = 841.89;
 const ALTO = 595.28;
 const MARGEN = 30;
 const COLUMNAS = 4;
-const ALTO_CELDA = 125;
+const ALTO_CELDA = 116;
 const ANCHO_CELDA = (ANCHO - 2 * MARGEN) / COLUMNAS;
 const FILAS = Math.floor((ALTO - 2 * MARGEN) / ALTO_CELDA);
-const ANCHO_BARRAS = 150;
-const ALTO_BARRAS = 50;
-// Relleno de la celda y sangría del código escrito (20 y 45 px en Laravel).
+// Medidas de Laravel (dompdf, 96 px por pulgada): barras de 2 px por módulo y
+// 50 px de alto, relleno de la celda de 20 px y el código escrito 45 px más
+// adentro. Aquí van en puntos (1 px = 0,75 pt).
+const PUNTOS_POR_MODULO = 1.5;
+const ALTO_BARRAS = 37.5;
 const RELLENO = 15;
-const SANGRIA_CODIGO = 34;
+const SANGRIA_CODIGO = 33.75;
+// Laravel no elegía fuente: dompdf usa Times.
+const FUENTE = 'Times-Roman';
 
 // PDF para imprimir y pegar: por cada cooler su número, el código de barras y
 // el código escrito debajo.
@@ -56,31 +60,34 @@ export async function armarEtiquetas(etiquetas: Etiqueta[]): Promise<Buffer> {
     const izquierda = x + RELLENO;
 
     doc
-      .font('Helvetica')
+      .font(FUENTE)
       .fontSize(13.5)
       .text(`Cooler ${etiqueta.nombre}`, izquierda, y + 12, {
         width: ANCHO_CELDA - RELLENO,
         lineBreak: false,
       });
+    // Un píxel por módulo: el ancho del PNG (bytes 16 a 19) es la cantidad de
+    // módulos, y así cada barra queda del mismo grosor que en Laravel.
     const imagen = await toBuffer({
       ...BARRAS,
       text: etiqueta.codigo,
-      height: 14,
-      scale: 3,
+      height: 10,
+      scale: 1,
     });
     doc.image(imagen, izquierda, y + 34, {
-      fit: [ANCHO_BARRAS, ALTO_BARRAS],
+      width: imagen.readUInt32BE(16) * PUNTOS_POR_MODULO,
+      height: ALTO_BARRAS,
     });
     doc
-      .font('Helvetica')
+      .font(FUENTE)
       .fontSize(12.75)
-      .text(etiqueta.codigo, izquierda + SANGRIA_CODIGO, y + 92, {
+      .text(etiqueta.codigo, izquierda + SANGRIA_CODIGO, y + 80, {
         width: ANCHO_CELDA - RELLENO - SANGRIA_CODIGO,
         lineBreak: false,
       });
   }
   if (etiquetas.length === 0) {
-    doc.font('Helvetica').fontSize(12).text('No hay coolers que mostrar.');
+    doc.font(FUENTE).fontSize(12).text('No hay coolers que mostrar.');
   }
 
   doc.end();
