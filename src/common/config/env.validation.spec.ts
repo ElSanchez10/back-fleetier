@@ -2,8 +2,8 @@ import { validarEntorno } from './env.validation';
 
 const MINIMO = {
   PGHOST: 'db',
-  PGDATABASE: 'dsl',
-  PGUSER: 'dsl',
+  PGDATABASE: 'fleetier',
+  PGUSER: 'fleetier',
   PGPASSWORD: 'x',
   CLAVE_INICIAL: 'clave-inicial',
 };

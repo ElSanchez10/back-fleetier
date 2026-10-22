@@ -36,7 +36,7 @@ export async function excel<T>(
   filas: T[],
 ): Promise<StreamableFile> {
   const libro = new ExcelJS.Workbook();
-  libro.creator = 'DSL';
+  libro.creator = 'Fleetier';
   const planilla = libro.addWorksheet(hoja, {
     views: [{ state: 'frozen', ySplit: 1 }],
   });

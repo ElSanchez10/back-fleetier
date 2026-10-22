@@ -4,7 +4,7 @@ import { UsuarioResponseDto } from './usuario.response.dto';
 // La contraseña con que parte la cuenta: se entrega a la persona, que debe
 // cambiarla en su primer ingreso.
 export class ClaveInicialResponseDto {
-  @ApiProperty({ example: 'dsl-inicial-2026' })
+  @ApiProperty({ example: 'fleetier-inicial-2026' })
   claveInicial: string;
 }
 

@@ -9,7 +9,7 @@ const DISPOSITIVO = { navegador: 'Chrome', ip: '10.0.0.1' };
 const USUARIO = {
   id: 1,
   nombre: 'Ana',
-  correo: 'ana@dsl.cl',
+  correo: 'ana@fleetier.cl',
   rol: 'admin' as const,
   debeCambiarClave: false,
   localId: null,
@@ -21,7 +21,9 @@ async function armar(fallos = 0) {
     fallosRecientes: vi.fn(() => Promise.resolve(fallos)),
     cuentaPorCorreo: vi.fn((correo: string) =>
       Promise.resolve(
-        correo === 'ana@dsl.cl' ? { id: 1, clave_hash: claveHash } : undefined,
+        correo === 'ana@fleetier.cl'
+          ? { id: 1, clave_hash: claveHash }
+          : undefined,
       ),
     ),
     claveHash: vi.fn(() => Promise.resolve(claveHash)),
@@ -55,14 +57,14 @@ describe('AuthService.ingresar', () => {
   it('con la contraseña correcta abre una sesión y olvida los fallos', async () => {
     const { servicio, datos } = await armar();
     const { token, usuario } = await servicio.ingresar(
-      'ANA@dsl.cl',
+      'ANA@fleetier.cl',
       'la-clave-buena',
       true,
       DISPOSITIVO,
     );
     expect(usuario.id).toBe(1);
     expect(token.length).toBeGreaterThan(30);
-    expect(datos.olvidarFallos).toHaveBeenCalledWith('ana@dsl.cl');
+    expect(datos.olvidarFallos).toHaveBeenCalledWith('ana@fleetier.cl');
     const [usuarioId, huella, duracion] = datos.abrirSesion.mock
       .calls[0] as unknown[];
     expect(usuarioId).toBe(1);
@@ -74,12 +76,12 @@ describe('AuthService.ingresar', () => {
     const { servicio, datos } = await armar();
     expect(
       await codigoDe(
-        servicio.ingresar('ana@dsl.cl', 'otra', false, DISPOSITIVO),
+        servicio.ingresar('ana@fleetier.cl', 'otra', false, DISPOSITIVO),
       ),
     ).toBe('credenciales_invalidas');
     expect(
       await codigoDe(
-        servicio.ingresar('nadie@dsl.cl', 'otra', false, DISPOSITIVO),
+        servicio.ingresar('nadie@fleetier.cl', 'otra', false, DISPOSITIVO),
       ),
     ).toBe('credenciales_invalidas');
     expect(datos.anotarFallo).toHaveBeenCalledTimes(2);
@@ -90,7 +92,12 @@ describe('AuthService.ingresar', () => {
     const { servicio, datos } = await armar(5);
     expect(
       await codigoDe(
-        servicio.ingresar('ana@dsl.cl', 'la-clave-buena', false, DISPOSITIVO),
+        servicio.ingresar(
+          'ana@fleetier.cl',
+          'la-clave-buena',
+          false,
+          DISPOSITIVO,
+        ),
       ),
     ).toBe('demasiados_intentos');
     expect(datos.abrirSesion).not.toHaveBeenCalled();

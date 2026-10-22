@@ -30,9 +30,9 @@ async function bootstrap() {
     const documento = SwaggerModule.createDocument(
       app,
       new DocumentBuilder()
-        .setTitle('DSL API')
+        .setTitle('Fleetier API')
         .setDescription(
-          'API del backoffice de DSL. Toda ruta exige sesión salvo las marcadas como públicas.',
+          'API del backoffice de Fleetier. Toda ruta exige sesión salvo las marcadas como públicas.',
         )
         .setVersion('1')
         .addCookieAuth(COOKIE_SESION)

@@ -13,7 +13,8 @@ export const LARGO_MINIMO_SECRETO = 16;
 const VERSION = 'v1';
 
 // La sal es fija a propósito: el secreto ya es largo y al azar, y la llave
-// debe salir igual en cada partida del back.
+// debe salir igual en cada partida del back. Conserva el nombre de cuando el
+// proyecto se llamaba DSL: si cambia, las cuentas ya cifradas no se descifran.
 export function derivarLlave(secreto: string): Buffer {
   return scryptSync(secreto, 'dsl-cuentas-conductor', 32);
 }

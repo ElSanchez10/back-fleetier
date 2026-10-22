@@ -1,7 +1,7 @@
 {
-  "name": "back-dsl",
+  "name": "back-fleetier",
   "version": "0.0.1",
-  "description": "API de DSL (NestJS)",
+  "description": "API de Fleetier (NestJS)",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {

@@ -1,12 +1,12 @@
-# back-dsl
+# back-fleetier
 
-API de DSL: NestJS sobre Postgres, con SQL directo (`pg`). El esquema de la
-base vive en `bd-dsl`; este repositorio solo la consulta.
+API de Fleetier: NestJS sobre Postgres, con SQL directo (`pg`). El esquema de la
+base vive en `bd-fleetier`; este repositorio solo la consulta.
 
 ## Desarrollo
 
 Requiere Node 24 (`nvm use` lee `.nvmrc`) y una base con las instalaciones de
-`bd-dsl` aplicadas.
+`bd-fleetier` aplicadas.
 
 Lo más simple es usar `../local.sh`, que crea una base temporal y levanta el
 back contra ella:
@@ -302,7 +302,7 @@ tipos, de sus validaciones y de sus comentarios.
 Jenkins ejecuta el `Jenkinsfile` en cada push a `main`: **Lint → Pruebas →
 Desplegar**. Lint y pruebas corren dentro de Docker (`docker build --target
 lint` y `--target prueba`); si alguna falla, o la cobertura baja del 80 %, no
-se despliega. Usa la credencial `dsl-env`, la misma de `bd-dsl`.
+se despliega. Usa la credencial `fleetier-env`, la misma de `bd-fleetier`.
 
 En un servidor sin Jenkins:
 
@@ -311,6 +311,6 @@ cp .env.example .env    # y completar
 docker compose up -d --build
 ```
 
-Necesita la base de `bd-dsl` ya desplegada (crea la red `dsl_interna`) y un
+Necesita la base de `bd-fleetier` ya desplegada (crea la red `fleetier_interna`) y un
 Traefik con la red externa `proxy`. El dominio no está escrito en el
 repositorio: lo define `APP_HOST`.

@@ -14,7 +14,7 @@ export class UsuarioSesionResponseDto implements UsuarioSesion {
   @ApiProperty({ example: 'Ana Pérez' })
   nombre: string;
 
-  @ApiProperty({ example: 'ana@dsl.cl' })
+  @ApiProperty({ example: 'ana@fleetier.cl' })
   correo: string;
 
   @ApiProperty({ enum: TODOS_LOS_ROLES })

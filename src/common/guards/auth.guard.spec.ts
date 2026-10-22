@@ -60,7 +60,7 @@ describe('AuthGuard', () => {
     expect(
       await codigoDe(
         guard(usuario('admin')).canActivate(
-          contexto('sinRoles', 'dsl_sesion=malo').ctx,
+          contexto('sinRoles', 'fleetier_sesion=malo').ctx,
         ),
       ),
     ).toBe('sin_sesion');
@@ -68,7 +68,7 @@ describe('AuthGuard', () => {
 
   it('deja en la petición al dueño de la sesión', async () => {
     const yo = usuario('encargado', 1);
-    const { ctx, peticion } = contexto('sinRoles', 'dsl_sesion=bueno');
+    const { ctx, peticion } = contexto('sinRoles', 'fleetier_sesion=bueno');
     expect(await guard(yo).canActivate(ctx)).toBe(true);
     expect(peticion.usuario).toBe(yo);
   });
@@ -77,13 +77,13 @@ describe('AuthGuard', () => {
     expect(
       await codigoDe(
         guard(usuario('encargado', 1)).canActivate(
-          contexto('soloAdmin', 'dsl_sesion=bueno').ctx,
+          contexto('soloAdmin', 'fleetier_sesion=bueno').ctx,
         ),
       ),
     ).toBe('sin_permiso');
     expect(
       await guard(usuario('admin')).canActivate(
-        contexto('soloAdmin', 'dsl_sesion=bueno').ctx,
+        contexto('soloAdmin', 'fleetier_sesion=bueno').ctx,
       ),
     ).toBe(true);
   });
@@ -91,7 +91,7 @@ describe('AuthGuard', () => {
   it('sin @Roles en ninguna parte, la ruta es solo para admin', async () => {
     const ctx = (rol: 'admin' | 'asistente') =>
       guard(usuario(rol)).canActivate(
-        contexto('cualquiera', 'dsl_sesion=bueno', SinRolesEnLaClase).ctx,
+        contexto('cualquiera', 'fleetier_sesion=bueno', SinRolesEnLaClase).ctx,
       );
     expect(await ctx('admin')).toBe(true);
     expect(await codigoDe(ctx('asistente'))).toBe('sin_permiso');
@@ -101,12 +101,14 @@ describe('AuthGuard', () => {
     const nueva = { ...usuario('admin'), debeCambiarClave: true };
     expect(
       await codigoDe(
-        guard(nueva).canActivate(contexto('sinRoles', 'dsl_sesion=bueno').ctx),
+        guard(nueva).canActivate(
+          contexto('sinRoles', 'fleetier_sesion=bueno').ctx,
+        ),
       ),
     ).toBe('debe_cambiar_clave');
     expect(
       await guard(nueva).canActivate(
-        contexto('conClaveInicial', 'dsl_sesion=bueno').ctx,
+        contexto('conClaveInicial', 'fleetier_sesion=bueno').ctx,
       ),
     ).toBe(true);
   });

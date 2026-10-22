@@ -10,7 +10,7 @@ import { datosDelUsuario } from './utils/usuarios.util';
 const dto = (cambios: Partial<UsuarioDto> = {}) =>
   ({
     nombre: 'Ana',
-    correo: 'Ana@DSL.cl',
+    correo: 'Ana@Fleetier.cl',
     rol: 'encargado',
     localId: 3,
     ...cambios,

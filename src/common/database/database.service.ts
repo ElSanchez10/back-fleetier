@@ -13,7 +13,7 @@ export type Consultar = <T extends pg.QueryResultRow>(
   parametros?: unknown[],
 ) => Promise<T[]>;
 
-// Acceso a Postgres con SQL directo. El esquema lo define bd-dsl;
+// Acceso a Postgres con SQL directo. El esquema lo define bd-fleetier;
 // aquí solo se consulta.
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {

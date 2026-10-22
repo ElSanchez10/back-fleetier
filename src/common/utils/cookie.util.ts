@@ -1,4 +1,4 @@
-export const COOKIE_SESION = 'dsl_sesion';
+export const COOKIE_SESION = 'fleetier_sesion';
 
 // Valor de una cookie en la cabecera "Cookie" de una petición.
 export function leerCookie(

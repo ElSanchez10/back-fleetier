@@ -8,7 +8,7 @@ import { AuthService, DURACION_RECORDADA_MS } from './auth.service';
 const TOKEN = 'token-de-prueba';
 const peticion = (cabeceras: Record<string, string> = {}) =>
   ({
-    headers: { cookie: `dsl_sesion=${TOKEN}`, ...cabeceras },
+    headers: { cookie: `fleetier_sesion=${TOKEN}`, ...cabeceras },
     ip: '::ffff:10.8.0.6',
   }) as never;
 const respuesta = () => ({ cookie: vi.fn(), clearCookie: vi.fn() });
@@ -48,7 +48,7 @@ describe('AuthController', () => {
       ip: '10.8.0.9',
     });
     expect(r.cookie).toHaveBeenCalledWith(
-      'dsl_sesion',
+      'fleetier_sesion',
       TOKEN,
       expect.objectContaining({
         httpOnly: true,
@@ -117,7 +117,9 @@ describe('AuthController', () => {
     const r = respuesta();
     await controller.salir(peticion(), r as never);
     expect(servicio.salir).toHaveBeenCalledWith(TOKEN);
-    expect(r.clearCookie).toHaveBeenCalledWith('dsl_sesion', { path: '/api' });
+    expect(r.clearCookie).toHaveBeenCalledWith('fleetier_sesion', {
+      path: '/api',
+    });
     const r2 = respuesta();
     await controller.eliminarCuenta({ clave: 'c' }, yo, r2 as never);
     expect(servicio.eliminarCuenta).toHaveBeenCalledWith(yo.id, 'c');
